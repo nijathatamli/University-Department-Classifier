@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Müraciət göndər · DEPTIFY</title>
+<meta name="description" content="Write your request and have it routed automatically to the right department." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&family=Raleway:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/assets/design-system.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="bg-gradient"></div>
+<header id="site-header"></header>
+<main id="main" class="page">
+  <section class="page-head reveal">
+    <div class="label-mono">[ Müraciət ]</div>
+    <h1 class="h-page">Müraciətinizi yazın,<br>biz yönləndirək.</h1>
+    <p class="body-p">Şikayət, sorğu və ya təklifinizi öz sözlərinizlə yazın. Model mətni təhlil edir, məsul şöbəni müəyyən edir və müraciətinizi avtomatik olaraq həmin şöbəyə göndərir.</p>
+  </section>
+  <section class="panel reveal">
+    <form id="classify-form" novalidate>
+      <div class="field">
+        <label for="message">Müraciətiniz</label>
+        <textarea class="textarea" id="message" name="message" rows="7"
+                  placeholder="Şikayət, sorğu və ya təklifinizi buraya yazın..."
+                  aria-describedby="message-hint"></textarea>
+        <span class="field-error"></span>
+        <span class="field-hint" id="message-hint">
+          Ən azı 10 simvol. <span id="char-count">0</span>/4000
+        </span>
+      </div>
+
+      <div class="row-between mt-6">
+        <span class="meta" id="classifier-state"></span>
+        <button class="btn btn-primary" type="submit" id="submit-btn">Müraciəti göndər</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="result" class="mt-8" aria-live="polite"></section>
+
+  <section class="panel mt-8 reveal">
+    <div class="label-mono">[ Nümunələr ]</div>
+    <p class="body-p mt-4" style="font-size:15px">Sınamaq üçün bunlardan birinə toxunun:</p>
+    <div class="chips mt-6" id="examples"></div>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script type="module" src="/assets/classifier.js"></script>
+</body>
+</html>

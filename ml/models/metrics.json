@@ -1,0 +1,89 @@
+{
+  "model_version": "request-router-v1.0",
+  "algorithm": "TF-IDF + Logistic Regression",
+  "feature_version": "v1",
+  "trained_at": "2026-09-25T09:33:06.256915+00:00",
+  "dataset_size": 151,
+  "train_size": 113,
+  "test_size": 38,
+  "labels": [
+    "Dekanat",
+    "Kitabxana",
+    "Maliyyə",
+    "İT Dəstək"
+  ],
+  "label_distribution": {
+    "Dekanat": 38,
+    "Kitabxana": 37,
+    "Maliyyə": 38,
+    "İT Dəstək": 38
+  },
+  "accuracy": 0.7895,
+  "precision_macro": 0.8288,
+  "recall_macro": 0.7861,
+  "f1_macro": 0.7854,
+  "cv_accuracy_mean": 0.8009,
+  "cv_accuracy_std": 0.0824,
+  "confusion_matrix": {
+    "labels": [
+      "Dekanat",
+      "Kitabxana",
+      "Maliyyə",
+      "İT Dəstək"
+    ],
+    "matrix": [
+      [
+        8,
+        0,
+        1,
+        0
+      ],
+      [
+        3,
+        5,
+        1,
+        0
+      ],
+      [
+        1,
+        0,
+        8,
+        1
+      ],
+      [
+        1,
+        0,
+        0,
+        9
+      ]
+    ]
+  },
+  "per_label": {
+    "Dekanat": {
+      "precision": 0.6154,
+      "recall": 0.8889,
+      "f1": 0.7273,
+      "support": 9
+    },
+    "Kitabxana": {
+      "precision": 1.0,
+      "recall": 0.5556,
+      "f1": 0.7143,
+      "support": 9
+    },
+    "Maliyyə": {
+      "precision": 0.8,
+      "recall": 0.8,
+      "f1": 0.8,
+      "support": 10
+    },
+    "İT Dəstək": {
+      "precision": 0.9,
+      "recall": 0.9,
+      "f1": 0.9,
+      "support": 10
+    }
+  },
+  "vocabulary_size": 6145,
+  "fit_on": "full dataset (metrics measured on the held-out split)"
+}

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Qeydiyyat · DEPTIFY</title>
+<meta name="description" content="Müraciət göndərmək və cavabları izləmək üçün qeydiyyatdan keçin." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&family=Raleway:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/assets/design-system.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="bg-gradient"></div>
+<header id="site-header"></header>
+<main id="main" class="page page--auth">
+  <section class="panel reveal" style="width:min(460px,100%)">
+    <div class="label-mono">[ Qeydiyyat ]</div>
+    <h1 class="h-section mt-4">Hesab yaradın.</h1>
+    <p class="body-p mt-4" style="font-size:15px">Müraciət göndərmək və cavabları izləmək üçün qeydiyyatdan keçin.</p>
+    
+    <form id="auth-form" class="stack mt-8" novalidate>
+      <div class="grid grid-2" style="gap:12px">
+        <div class="field">
+          <label for="firstName">Ad</label>
+          <input class="input" id="firstName" name="firstName" autocomplete="given-name" required />
+          <span class="field-error"></span>
+        </div>
+        <div class="field">
+          <label for="lastName">Soyad</label>
+          <input class="input" id="lastName" name="lastName" autocomplete="family-name" required />
+          <span class="field-error"></span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="email">E-poçt</label>
+        <input class="input" id="email" name="email" type="email" autocomplete="email" required />
+        <span class="field-error"></span>
+      </div>
+      <div class="field">
+        <label for="password">Şifrə</label>
+        <input class="input" id="password" name="password" type="password"
+               autocomplete="new-password" required />
+        <span class="field-error"></span>
+        <span class="field-hint">Ən azı 8 simvol, böyük və kiçik hərf, rəqəm.</span>
+      </div>
+      <div id="form-error" class="field-error" role="alert"></div>
+      <button class="btn btn-primary btn-block" type="submit" id="submit-btn">Hesab yarat</button>
+      <p class="body-p mt-4" style="font-size:14px">Hesabınız var?
+        <a href="/login" style="text-decoration:underline">Daxil olun</a></p>
+    </form>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script type="module" src="/assets/register.js"></script>
+</body>
+</html>
