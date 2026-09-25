@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Haqqımızda · DEPTIFY</title>
+<meta name="description" content="About the student request routing system." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&family=Raleway:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/assets/design-system.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="bg-gradient"></div>
+<header id="site-header"></header>
+<main id="main" class="page">
+  <section class="page-head reveal">
+    <div class="label-mono">[ Haqqımızda ]</div>
+    <h1 class="h-page">Müraciətlər<br>itmir.</h1>
+    <p class="body-p">DEPTIFY tələbə müraciətlərini oxuyur və avtomatik olaraq məsul şöbəyə yönləndirir.</p>
+  </section>
+  <section class="stack-lg mt-8">
+    <div class="panel reveal">
+      <h2 class="h-section">Problem</h2>
+      <p class="body-p mt-4">Tələbə problemi ilə üzləşəndə çox vaxt kimə müraciət edəcəyini bilmir.
+        Maliyyə məsələsini dekanata yazır, texniki problemi kitabxanaya. Müraciət şöbədən şöbəyə
+        ötürülür, cavab gecikir, bəzən ümumiyyətlə itir.</p>
+    </div>
+
+    <div class="panel reveal" data-delay="0.05">
+      <h2 class="h-section">Həll</h2>
+      <p class="body-p mt-4">Tələbə sadəcə yazır. NLP modeli mətni təhlil edir və müraciəti dörd
+        şöbədən birinə — Dekanat, Maliyyə, Kitabxana və ya İT Dəstək — yönləndirir. Müraciət
+        dərhal həmin şöbənin növbəsinə düşür və tələbə statusu izləyə bilir.</p>
+    </div>
+
+    <div class="panel reveal" data-delay="0.1">
+      <h2 class="h-section">Texnologiya</h2>
+      <p class="body-p mt-4">TF-IDF vektorizasiya və Logistic Regression — Python və scikit-learn
+        üzərində. Model Azərbaycan dilində hazırlanmış 151 cümləlik datasetlə öyrədilib.
+        Veb tətbiq Node.js və PostgreSQL üzərində işləyir; model ayrıca xidmət kimi saxlanılır və
+        hər sorğuda yenidən öyrədilmir.</p>
+    </div>
+
+    <div class="panel reveal" data-delay="0.15">
+      <h2 class="h-section">Məlumatlarınız</h2>
+      <p class="body-p mt-4">Müraciətiniz yalnız sizin hesabınıza bağlıdır. Onu siz, yönləndirildiyi
+        şöbənin əməkdaşı və administrator görə bilər — başqa tələbə və ya başqa şöbə yox. Bu qayda
+        brauzerdə deyil, serverdə yoxlanılır. Şifrələr Argon2id ilə hash olunur.</p>
+      <div class="row mt-6">
+        <a class="btn btn-primary" href="/classifier">Müraciət göndər</a>
+        <a class="btn btn-ghost" href="/how-it-works">Necə işləyir</a>
+      </div>
+    </div>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script type="module" src="/assets/how-it-works.js"></script>
+</body>
+</html>

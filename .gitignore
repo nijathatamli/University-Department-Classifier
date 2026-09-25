@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+coverage/
+
+# Trained model artifacts are build output. They are small, so committing them
+# makes a fresh clone runnable without training first — uncomment to exclude
+# them and build in CI instead.
+# ml/models/

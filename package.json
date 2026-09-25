@@ -1,0 +1,22 @@
+{
+  "name": "university-department-classifier",
+  "version": "1.0.0",
+  "private": true,
+  "description": "University Department Classifier \u2014 full-stack application",
+  "workspaces": [
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace server",
+    "build": "npm run build --workspace server",
+    "start": "npm run start --workspace server",
+    "lint": "npm run lint --workspace server",
+    "test": "npm run test --workspace server",
+    "db:migrate": "npm run db:migrate --workspace server",
+    "db:seed": "npm run db:seed --workspace server",
+    "db:reset": "npm run db:reset --workspace server",
+    "db:setup": "npm run db:setup --workspace server",
+    "ml:train": "python3 ml/train.py",
+    "ml:serve": "cd ml && python3 serve.py"
+  }
+}

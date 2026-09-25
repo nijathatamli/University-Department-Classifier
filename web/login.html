@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Daxil ol · DEPTIFY</title>
+<meta name="description" content="Müraciətlərinizi göndərmək və izləmək üçün hesabınıza daxil olun." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&family=Raleway:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/assets/design-system.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="bg-gradient"></div>
+<header id="site-header"></header>
+<main id="main" class="page page--auth">
+  <section class="panel reveal" style="width:min(460px,100%)">
+    <div class="label-mono">[ Daxil ol ]</div>
+    <h1 class="h-section mt-4">Xoş gəlmisiniz.</h1>
+    <p class="body-p mt-4" style="font-size:15px">Müraciətlərinizi göndərmək və izləmək üçün hesabınıza daxil olun.</p>
+    
+    <form id="auth-form" class="stack mt-8" novalidate>
+      <div class="field">
+        <label for="email">E-poçt</label>
+        <input class="input" id="email" name="email" type="email" autocomplete="email" required />
+        <span class="field-error"></span>
+      </div>
+      <div class="field">
+        <label for="password">Şifrə</label>
+        <input class="input" id="password" name="password" type="password"
+               autocomplete="current-password" required />
+        <span class="field-error"></span>
+      </div>
+      <div id="form-error" class="field-error" role="alert"></div>
+      <button class="btn btn-primary btn-block" type="submit" id="submit-btn">Daxil ol</button>
+      <div class="row-between mt-4">
+        <a class="body-p" style="font-size:14px" href="/forgot-password">Şifrəni unutmusunuz?</a>
+        <a class="body-p" style="font-size:14px" href="/register">Hesab yaradın</a>
+      </div>
+    </form>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script type="module" src="/assets/login.js"></script>
+</body>
+</html>

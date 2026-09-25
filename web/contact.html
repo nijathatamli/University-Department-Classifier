@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Əlaqə · DEPTIFY</title>
+<meta name="description" content="Get in touch with the DEPTIFY team." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&family=Raleway:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/assets/design-system.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="bg-gradient"></div>
+<header id="site-header"></header>
+<main id="main" class="page">
+  <section class="page-head reveal">
+    <div class="label-mono">[ Əlaqə ]</div>
+    <h1 class="h-page">Bizimlə əlaqə.</h1>
+    <p class="body-p">Sistemlə bağlı sualınız, səhv yönləndirmə və ya təklifiniz varsa, yazın.</p>
+  </section>
+  <section class="panel reveal" style="max-width:640px">
+    <form id="contact-form" novalidate>
+      <div class="stack">
+        <div class="field">
+          <label for="name">Adınız</label>
+          <input class="input" id="name" name="name" autocomplete="name" required />
+          <span class="field-error"></span>
+        </div>
+        <div class="field">
+          <label for="email">E-poçt</label>
+          <input class="input" id="email" name="email" type="email" autocomplete="email" required />
+          <span class="field-error"></span>
+        </div>
+        <div class="field">
+          <label for="subject">Mövzu</label>
+          <input class="input" id="subject" name="subject" required />
+          <span class="field-error"></span>
+        </div>
+        <div class="field">
+          <label for="message">Mesaj</label>
+          <textarea class="textarea" id="message" name="message" required
+                    placeholder="Nə barədə yazmaq istəyirsiniz?"></textarea>
+          <span class="field-error"></span>
+          <span class="field-hint">Ən azı 10 simvol.</span>
+        </div>
+        <button class="btn btn-primary" type="submit" id="submit-btn">Göndər</button>
+      </div>
+    </form>
+    <div id="contact-success" hidden></div>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script type="module" src="/assets/contact.js"></script>
+</body>
+</html>

@@ -1,0 +1,1739 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>DEPTIFY — Tələbə Müraciətlərinin Avtomatik Yönləndirilməsi</title>
+<meta name="description" content="Tələbə müraciətini yazır, NLP modeli mətni təhlil edir və müraciəti avtomatik olaraq məsul şöbəyə yönləndirir." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&family=Raleway:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+<style>
+/* ============================================================
+   TOKENS
+   ============================================================ */
+:root{
+  --font-sans:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-display:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --font-raleway:"Raleway",ui-sans-serif,system-ui,sans-serif;
+
+  --accent:#0E2AC5;
+  --blue:#2f69ff;
+
+  --n950:#0a0a0a;
+  --n700:#404040;
+  --n500:#737373;
+  --n400:#a3a3a3;
+  --n100:#f5f5f5;
+
+  --eo:cubic-bezier(0.16,1,0.3,1);
+  --eio:cubic-bezier(0.65,0,0.35,1);
+
+  --orb:radial-gradient(circle at 50% 30%, #5175ff 0%, #0e2ac5 55%, #020b40 100%);
+  --glass-inset:inset 0 1.5px 2px rgba(255,255,255,0.7), 0 8px 30px rgba(0,0,0,0.04);
+}
+
+/* ============================================================
+   RESET / BASE
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;width:100%}
+body{
+  overflow-x:hidden;
+  background:#f7fafc;
+  color:#1a1a1a;
+  font-family:var(--font-sans);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+h1,h2,h3,p,ul,figure{margin:0}
+ul{padding:0;list-style:none}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+svg{display:block}
+
+::-webkit-scrollbar{width:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(14,42,197,0.18);border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:rgba(14,42,197,0.32)}
+
+/* ============================================================
+   FIXED LAYERS
+   ============================================================ */
+#bg-gradient{
+  position:fixed;inset:0;z-index:-10;
+  background:radial-gradient(circle at center, #ffffff 0%, #ecefff 35%, #c2d1ff 100%);
+  transition:background 1.2s cubic-bezier(0.65,0,0.35,1);
+}
+#canvas-wrap{position:fixed;inset:0;z-index:0;pointer-events:none}
+#gl{display:block;width:100%;height:100%;pointer-events:none}
+
+/* ============================================================
+   LOADER
+   ============================================================ */
+#loader{
+  position:fixed;inset:0;z-index:100;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;
+  background:radial-gradient(circle at 50% 42%, #ffffff 0%, #eef2ff 45%, #dbe4ff 100%);
+  transition:opacity .55s cubic-bezier(0.65,0,0.35,1);
+}
+#loader.leaving{opacity:0;pointer-events:none}
+#loader.gone{display:none}
+.ld{opacity:0;transform:translateY(18px);filter:blur(6px)}
+#loader.in .ld{
+  opacity:1;transform:translateY(0);filter:blur(0);
+  transition:opacity .9s cubic-bezier(0.16,1,0.3,1),transform .9s cubic-bezier(0.34,1.36,0.5,1),filter .9s cubic-bezier(0.16,1,0.3,1);
+}
+#loader.in .ld:nth-child(1){transition-delay:.10s}
+#loader.in .ld:nth-child(2){transition-delay:.26s}
+#loader.in .ld:nth-child(3){transition-delay:.42s}
+
+#ld-status{
+  font-family:var(--font-mono);font-size:10px;font-weight:400;
+  letter-spacing:.28em;text-transform:uppercase;color:#6b7bb5;
+}
+#ld-bar{
+  width:clamp(180px,32vw,280px);height:2px;border-radius:99px;
+  background:rgba(14,42,197,0.14);overflow:hidden;
+}
+#ld-fill{
+  height:100%;width:0%;border-radius:99px;
+  background:linear-gradient(90deg,#5175ff 0%,#0e2ac5 100%);
+  box-shadow:0 0 14px rgba(47,105,255,0.55);
+  transition:width .45s cubic-bezier(0.16,1,0.3,1);
+}
+#ld-count{
+  font-family:var(--font-mono);font-size:11px;font-weight:700;
+  letter-spacing:.1em;color:#0e2ac5;font-variant-numeric:tabular-nums;
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+#header{
+  position:fixed;top:0;left:0;right:0;z-index:30;
+  height:80px;padding:0 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  pointer-events:none;
+  opacity:0;transform:translateY(-16px);
+}
+#header > *{pointer-events:auto}
+body.revealed #header{
+  opacity:1;transform:translateY(0);
+  transition:opacity .8s var(--eo),transform .8s var(--eo);
+}
+.wordmark{
+  font-family:var(--font-display);font-weight:900;font-size:18px;
+  letter-spacing:.25em;color:var(--n950);
+}
+#nav{display:none;align-items:center;gap:48px}
+#nav a{font-family:var(--font-raleway);font-size:14px;font-weight:500;color:var(--n950);transition:opacity .3s ease}
+#nav a:hover{opacity:.6}
+.hdr-right{display:flex;align-items:center;gap:10px}
+
+.icon-btn{
+  width:40px;height:40px;border-radius:9999px;
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid rgba(255,255,255,0.4);
+  background:rgba(255,255,255,0.2);
+  -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);
+  box-shadow:var(--glass-inset);
+  color:var(--n950);
+  transition:background .3s ease;
+}
+.icon-btn:hover{background:rgba(255,255,255,0.3)}
+
+/* --- language switcher (built from the existing glass tokens) --- */
+.lang-wrap{position:relative}
+.lang-btn{font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.06em}
+.lang-menu{
+  position:absolute;top:calc(100% + 10px);right:0;min-width:168px;
+  display:flex;flex-direction:column;gap:2px;padding:6px;
+  border-radius:1rem;
+  border:1px solid rgba(255,255,255,0.4);
+  background:rgba(255,255,255,0.2);
+  -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);
+  box-shadow:var(--glass-inset);
+  opacity:0;transform:translateY(-6px) scale(.98);pointer-events:none;
+  transition:opacity .3s var(--eo),transform .3s var(--eo);
+}
+.lang-menu.open{opacity:1;transform:none;pointer-events:auto}
+.lang-menu button{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:9px 12px;border-radius:.7rem;
+  font-family:var(--font-raleway);font-size:13px;font-weight:500;color:var(--n950);
+  transition:background .25s ease,color .25s ease;
+}
+.lang-menu button:hover{background:rgba(255,255,255,.45)}
+.lang-menu button .code{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--n500)}
+.lang-menu button.sel{background:#0a0a0a;color:#fff}
+.lang-menu button.sel .code{color:rgba(255,255,255,.6)}
+
+.contact-pill{
+  display:inline-flex;align-items:center;gap:12px;
+  padding:6px 6px 6px 20px;border-radius:9999px;
+  background:rgba(255,255,255,0.12);
+  -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);
+  border:1px solid;
+  border-top-color:rgba(255,255,255,0.90);
+  border-bottom-color:rgba(255,255,255,0.85);
+  border-left-color:rgba(255,255,255,0.10);
+  border-right-color:rgba(255,255,255,0.10);
+  box-shadow:var(--glass-inset);
+  color:var(--n950);
+}
+.contact-pill span{font-family:var(--font-raleway);font-size:13px;font-weight:500;white-space:nowrap}
+.orb{
+  width:32px;height:32px;border-radius:9999px;background:var(--orb);
+  display:flex;align-items:center;justify-content:center;color:#fff;
+  transition:transform .3s var(--eo);
+}
+.contact-pill:hover .orb{transform:scale(1.05)}
+
+/* ============================================================
+   SECTIONS
+   ============================================================ */
+.sec{position:relative;z-index:10;min-height:100svh;pointer-events:none}
+.pe{pointer-events:auto}
+
+.label-mono{
+  font-family:var(--font-mono);font-size:11px;font-weight:400;
+  letter-spacing:.25em;text-transform:uppercase;color:rgba(14,42,197,.8);
+}
+.h-big{
+  font-family:var(--font-raleway);font-weight:500;color:var(--n950);
+  font-size:2.6rem;line-height:1.0;letter-spacing:-.025em;
+}
+.body-p{
+  font-family:var(--font-raleway);font-weight:400;font-size:16px;
+  line-height:1.55;color:var(--n700);
+}
+
+/* -- 01 HERO -- */
+#hero{display:flex;align-items:flex-end}
+.hero-inner{
+  width:100%;padding:0 24px 48px;
+  opacity:0;transition:opacity .6s ease;
+}
+body.revealed .hero-inner{opacity:1}
+.hero-row{display:flex;flex-direction:column;justify-content:space-between;gap:32px}
+.hero-left{display:flex;flex-direction:column;align-items:flex-start;gap:14px}
+.eyebrow{
+  font-family:var(--font-raleway);font-weight:500;font-size:12px;
+  letter-spacing:.05em;text-transform:uppercase;color:var(--accent);
+  margin-bottom:16px;
+}
+.hero-title{
+  font-family:var(--font-raleway);font-weight:500;color:var(--n950);
+  font-size:2.6rem;line-height:.95;letter-spacing:-.05em;
+}
+.hero-right p{font-family:var(--font-raleway);font-weight:500;font-size:15px;line-height:1.35;color:var(--n950)}
+.credit{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--n500);margin-top:20px;
+}
+.scroll-cue{
+  display:none;align-items:center;gap:8px;margin-top:16px;color:var(--n500);
+  animation:pulse 2s cubic-bezier(0.4,0,0.6,1) infinite;
+}
+.scroll-cue span{font-family:var(--font-mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+.hero-anim{opacity:0}
+body.revealed .hero-anim{opacity:1;transform:translateY(0)}
+.a-eyebrow{transform:translateY(14px);transition:opacity .8s var(--eo) .15s,transform .8s var(--eo) .15s}
+.a-title{transform:translateY(22px);transition:opacity 1s var(--eo) .28s,transform 1s var(--eo) .28s}
+.a-right{transform:translateY(22px);transition:opacity .9s var(--eo) .45s,transform .9s var(--eo) .45s}
+
+/* -- 02 DROP -- */
+#drop{display:flex;align-items:center;padding:128px 24px 160px}
+.grid12{display:grid;grid-template-columns:1fr;gap:40px;align-items:start;width:100%}
+.stats{display:flex;flex-direction:column;gap:14px}
+.card{
+  position:relative;border-radius:1.4rem;padding:1px;
+  background:linear-gradient(to bottom,rgba(255,255,255,.8) 0%,rgba(255,255,255,.3) 50%,rgba(255,255,255,.1) 100%);
+  box-shadow:0 14px 40px -12px rgba(14,42,197,0.18);
+  transition:transform .4s var(--eo);
+}
+.card:hover{transform:translateY(-2px)}
+.card-in{
+  position:relative;border-radius:1.35rem;overflow:hidden;
+  background:rgba(255,255,255,.25);
+  -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);
+  padding:20px 24px;
+}
+.card-in::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(to right,transparent,rgba(255,255,255,.9),transparent);
+}
+.card-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.card-idx{font-family:var(--font-mono);font-size:10px;color:var(--accent)}
+.card-key{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--n400)}
+.dot-blue{
+  width:6px;height:6px;border-radius:9999px;margin-left:auto;
+  background:radial-gradient(circle at 35% 30%, #5175ff, #0e2ac5);
+  box-shadow:0 0 8px rgba(47,105,255,0.6);
+}
+.card-val{font-family:var(--font-raleway);font-weight:600;font-size:18px;color:var(--n950)}
+.card-desc{font-family:var(--font-raleway);font-weight:400;font-size:13px;color:var(--n500);margin-top:4px}
+
+/* -- 03 SHAPE -- */
+#shape{display:flex;flex-direction:column;justify-content:space-between;padding:144px 24px}
+.shape-bottom{align-self:flex-end;max-width:24rem;text-align:left}
+.pill-hint{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 16px;border-radius:9999px;
+  border:1px solid rgba(255,255,255,.55);
+  background:rgba(255,255,255,.35);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  color:var(--n700);margin-top:28px;
+}
+.pill-hint span{font-family:var(--font-mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase}
+
+/* -- 04 RELEASE -- */
+#release{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:144px 24px;
+}
+.release-inner{max-width:48rem;width:100%}
+.h-release{
+  font-family:var(--font-raleway);font-weight:500;color:var(--n950);
+  font-size:2.8rem;line-height:1.0;letter-spacing:-.025em;
+}
+
+/* ============================================================
+   REVEAL
+   ============================================================ */
+.reveal{opacity:0;transform:translateY(42px);filter:blur(8px)}
+.reveal.in{
+  opacity:1;transform:translateY(0);filter:blur(0);
+  transition:opacity 1.5s var(--eo),transform 1.5s var(--eo),filter 1.5s var(--eo);
+}
+.reveal-sm{opacity:0;transform:translateY(24px)}
+.reveal-sm.in{opacity:1;transform:translateY(0);transition:opacity .7s var(--eo),transform .7s var(--eo)}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+#footer{
+  position:relative;z-index:10;
+  background:#0a0a0a;color:#fff;
+  border-top-left-radius:2.5rem;border-top-right-radius:2.5rem;
+  overflow:hidden;
+}
+.bloom{position:absolute;border-radius:9999px;filter:blur(40px);pointer-events:none}
+.bloom-a{top:-8rem;right:-8rem;width:28rem;height:28rem;background:radial-gradient(circle,#2f69ff66 0%,transparent 65%)}
+.bloom-b{bottom:-10rem;left:-10rem;width:32rem;height:32rem;background:radial-gradient(circle,#5175ff44 0%,transparent 65%)}
+
+.marquee{position:relative;border-bottom:1px solid rgba(255,255,255,.1);padding:20px 0;overflow:hidden}
+.marquee-track{display:inline-flex;align-items:center;white-space:nowrap;animation:marquee 26s linear infinite}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.marquee-word{
+  font-family:var(--font-raleway);font-weight:500;color:rgba(255,255,255,.9);
+  font-size:clamp(28px,6vw,64px);padding:0 32px;
+}
+.marquee-dot{width:10px;height:10px;border-radius:9999px;background:var(--blue);flex:none}
+
+.footer-body{position:relative;padding:64px 24px 40px}
+.footer-grid{display:grid;grid-template-columns:1fr;gap:48px}
+.f-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:rgba(255,255,255,.4)}
+.f-head{font-family:var(--font-raleway);font-weight:500;font-size:36px;line-height:.95;margin-top:24px}
+.mail-pill{
+  display:inline-flex;align-items:center;gap:16px;margin-top:40px;
+  padding:8px 8px 8px 28px;border-radius:9999px;
+  border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);
+  transition:background .3s ease;
+}
+.mail-pill:hover{background:rgba(255,255,255,.1)}
+.mail-pill > span{font-family:var(--font-raleway);font-weight:500;font-size:16px}
+.mail-orb{
+  width:40px;height:40px;border-radius:9999px;background:var(--orb);
+  display:flex;align-items:center;justify-content:center;color:#fff;
+}
+.mail-pill:hover .mail-orb svg{transform:rotate(45deg)}
+.mail-orb svg{transition:transform .3s var(--eo)}
+
+.link-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px}
+.link-col h3{font-family:var(--font-mono);font-size:10px;font-weight:400;letter-spacing:.25em;text-transform:uppercase;color:rgba(255,255,255,.4);margin:0 0 20px}
+.link-col li + li{margin-top:12px}
+.link-col a{
+  display:inline-flex;align-items:center;gap:4px;
+  font-family:var(--font-raleway);font-weight:400;font-size:15px;color:rgba(255,255,255,.75);
+  transition:color .3s ease;
+}
+.link-col a:hover{color:#fff}
+.link-col a svg{opacity:0;transform:translate(-4px,4px);transition:opacity .3s ease,transform .3s ease}
+.link-col a:hover svg{opacity:1;transform:translate(0,0)}
+
+.footer-bottom{
+  margin-top:80px;padding-top:28px;border-top:1px solid rgba(255,255,255,.1);
+  display:flex;flex-direction:column;gap:20px;align-items:flex-start;justify-content:space-between;
+}
+.fb-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.fb-mark{font-family:var(--font-display);font-weight:900;font-size:14px;letter-spacing:.22em}
+.fb-dot{width:5px;height:5px;border-radius:9999px;background:var(--blue)}
+.fb-copy{font-family:var(--font-mono);font-size:11px;color:rgba(255,255,255,.4)}
+.socials{display:flex;align-items:center;gap:10px}
+.social-btn{
+  width:40px;height:40px;border-radius:9999px;border:1px solid rgba(255,255,255,.15);
+  display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);
+  transition:color .3s ease,border-color .3s ease;
+}
+.social-btn:hover{color:#fff;border-color:rgba(255,255,255,.4)}
+
+/* ============================================================
+   DRAWER
+   ============================================================ */
+#scrim{
+  position:fixed;inset:0;z-index:40;
+  background:rgba(10,10,10,.2);
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:opacity .5s ease;
+}
+#scrim.open{opacity:.4;pointer-events:auto}
+#drawer{
+  position:fixed;top:0;right:0;height:100%;width:100%;z-index:50;
+  background:rgba(255,255,255,.95);
+  -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);
+  border-left:1px solid var(--n100);
+  padding:32px;overflow-y:auto;
+  display:flex;flex-direction:column;
+  transform:translateX(100%);
+  transition:transform .62s cubic-bezier(0.22,1.16,0.32,1);
+}
+#drawer.open{transform:translateX(0)}
+.dr-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.dr-title{display:flex;align-items:center;gap:10px;color:var(--n950)}
+.dr-title h2{font-family:var(--font-display);font-weight:900;font-size:14px;letter-spacing:.2em;text-transform:uppercase;margin:0}
+.dr-close{
+  width:36px;height:36px;border-radius:9999px;border:1px solid var(--n100);
+  display:flex;align-items:center;justify-content:center;color:var(--n500);
+  transition:background .25s ease,color .25s ease;
+}
+.dr-close:hover{background:var(--n100);color:var(--n950)}
+.dr-note{font-family:var(--font-mono);font-size:12px;font-style:italic;color:var(--n400);line-height:1.5}
+.dr-section-title{
+  display:flex;align-items:center;gap:8px;margin:32px 0 14px;
+  font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--n950);
+}
+.themes{display:flex;flex-direction:column;gap:10px}
+.theme-card{
+  width:100%;text-align:left;border-radius:.75rem;border:1px solid var(--n100);
+  padding:16px;background:#fff;color:var(--n950);
+  transition:transform .3s var(--eo),background .3s ease,color .3s ease,border-color .3s ease;
+}
+.theme-card:hover{border-color:#d4d4d4}
+.theme-card.sel{background:#0a0a0a;color:#fff;border-color:#0a0a0a;transform:scale(1.02)}
+.tc-top{display:flex;align-items:center;gap:8px}
+.tc-name{font-family:var(--font-sans);font-weight:700;font-size:12px}
+.tc-sw{width:12px;height:12px;border-radius:9999px;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+.tc-desc{font-family:var(--font-sans);font-size:10px;line-height:1.5;margin-top:6px;opacity:.6}
+.dr-foot{margin-top:auto;padding-top:32px}
+.dr-meta{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;color:var(--n400);padding:5px 0;letter-spacing:.08em}
+.reset-btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:16px;
+  padding:12px;border-radius:.75rem;border:1px solid var(--n100);
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--n500);
+  transition:background .25s ease,color .25s ease;
+}
+.reset-btn:hover{background:var(--n100);color:var(--n950)}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (min-width:640px){
+  .hero-title{font-size:60px}
+  .h-big{font-size:60px}
+  .h-release{font-size:72px}
+  .link-cols{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .footer-bottom{flex-direction:row;align-items:center}
+  #drawer{width:420px}
+}
+@media (min-width:768px){
+  #header{height:96px;padding:0 48px}
+  #nav{display:flex}
+  .wordmark{font-size:20px}
+  .icon-btn{width:44px;height:44px}
+  .hdr-right{gap:12px}
+  .contact-pill{padding-left:24px}
+  .contact-pill span{font-size:14px}
+  .hero-inner{padding:0 48px 56px}
+  .hero-row{flex-direction:row;align-items:flex-end}
+  .hero-right{width:260px;flex:none}
+  .eyebrow{font-size:14px;margin-bottom:24px}
+  .hero-title{font-size:90px;line-height:1;white-space:nowrap}
+  .scroll-cue{display:flex}
+  .h-big{font-size:80px;line-height:.92}
+  .h-release{font-size:88px;line-height:.92}
+  .body-p{font-size:19px}
+  #drop{padding:160px 48px 160px}
+  #shape{padding:176px 48px}
+  #release{padding:176px 48px}
+  #footer{border-top-left-radius:4rem;border-top-right-radius:4rem}
+  .footer-body{padding:96px 48px 40px}
+  .f-head{font-size:60px}
+  .mail-pill > span{font-size:18px}
+  .footer-bottom{margin-top:112px}
+}
+@media (min-width:1024px){
+  .grid12{grid-template-columns:repeat(12,minmax(0,1fr));gap:64px}
+  .col-7{grid-column:span 7 / span 7}
+  .col-5{grid-column:span 5 / span 5;padding-top:12px}
+  .footer-grid{grid-template-columns:repeat(12,minmax(0,1fr))}
+  .fg-5{grid-column:span 5 / span 5}
+  .fg-7{grid-column:span 7 / span 7}
+}
+@media (min-width:768px){
+  .shape-bottom{text-align:right}
+}
+@media (prefers-reduced-motion:reduce){
+  .marquee-track{animation:none}
+  .scroll-cue{animation:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ BACKGROUND GRADIENT (z -10) ============ -->
+<div id="bg-gradient"></div>
+
+<!-- ============ WEBGL CANVAS (z 0) ============ -->
+<div id="canvas-wrap"><canvas id="gl"></canvas></div>
+
+<!-- ============ LOADER (z 100) ============ -->
+<div id="loader">
+  <div class="ld" id="ld-status">Təhlil sahəsi kalibrlənir</div>
+  <div class="ld" id="ld-bar"><div id="ld-fill"></div></div>
+  <div class="ld" id="ld-count">000%</div>
+</div>
+
+<!-- ============ HEADER (z 30) ============ -->
+<header id="header">
+  <a href="#hero" class="wordmark">DEPTIFY</a>
+
+  <nav id="nav">
+    <a href="/classifier" data-i18n="nav.classifier">Müraciət göndər</a>
+    <a href="/requests" data-i18n="nav.departments">Müraciətlərim</a>
+    <a href="/how-it-works" data-i18n="nav.how">Necə işləyir</a>
+    <a href="/about" data-i18n="nav.about">Haqqımızda</a>
+    <a href="/contact" data-i18n="nav.contact">Əlaqə</a>
+  </nav>
+
+  <div class="hdr-right">
+    <div class="lang-wrap">
+      <button class="icon-btn lang-btn" id="lang-btn" aria-haspopup="listbox" aria-expanded="false"
+              data-i18n-aria="aria.lang"><span id="lang-code">AZ</span></button>
+      <div class="lang-menu" id="lang-menu" role="listbox" data-i18n-aria="aria.langList">
+        <button role="option" data-lang="az"><span>Azərbaycan</span><span class="code">AZ</span></button>
+        <button role="option" data-lang="en"><span>English</span><span class="code">EN</span></button>
+        <button role="option" data-lang="ru"><span>Русский</span><span class="code">RU</span></button>
+      </div>
+    </div>
+
+    <button class="icon-btn" id="open-drawer" data-i18n-aria="aria.openControls" aria-label="Open classifier controls">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>
+    </button>
+
+    <a href="/classifier" class="contact-pill">
+      <span data-i18n="cta.header">Müraciət yaz</span>
+      <span class="orb">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      </span>
+    </a>
+  </div>
+</header>
+
+<!-- ============ 01 — HERO ============ -->
+<section class="sec" id="hero">
+  <div class="hero-inner pe">
+    <div class="hero-row">
+      <div class="hero-left">
+        <div class="eyebrow hero-anim a-eyebrow" data-i18n="hero.eyebrow">[ Müraciət yönləndirmə ]</div>
+        <h1 class="hero-title hero-anim a-title" data-i18n="hero.title">Yaz. Biz yönləndirək.</h1>
+      </div>
+
+      <div class="hero-right hero-anim a-right">
+        <p data-i18n="hero.para">Şikayət, sorğu və ya təklifinizi öz sözlərinizlə yazın — model mətni təhlil edir və müraciəti məsul şöbəyə göndərir.</p>
+        <div class="credit" data-i18n="hero.credit">© 2026 — NLP əsaslı müraciət təsnifatı</div>
+        <div class="scroll-cue">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+          <span data-i18n="hero.scroll">Kəşf et</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 — DROP / PHYSICS ============ -->
+<section class="sec" id="drop">
+  <div class="grid12 pe">
+    <div class="col-7">
+      <div class="label-mono reveal" data-i18n="s2.label">[ 02 — Təhlil ]</div>
+      <h2 class="h-big reveal" style="margin-top:24px" data-delay="0.1" data-i18n="s2.title">Mətn<br>siqnala çevrilir.</h2>
+      <p class="body-p reveal" style="margin-top:32px;max-width:32rem" data-delay="0.2" data-i18n="s2.para">Yazdığınız cümlə təmizlənir və hərf n-qramlarına bölünür. Azərbaycan dili aqlütinativdir — «kitab», «kitabı», «kitabxanadan» eyni kökü daşıyır, model bunu görür.
+      </p>
+    </div>
+
+    <div class="col-5 reveal" data-delay="0.25">
+      <div class="stats">
+        <div class="card">
+          <div class="card-in">
+            <div class="card-head">
+              <span class="card-idx">01</span>
+              <span class="card-key" data-i18n="card1.key">Vektorizasiya</span>
+              <span class="dot-blue"></span>
+            </div>
+            <div class="card-val" data-i18n="card1.val">TF-IDF</div>
+            <div class="card-desc" data-i18n="card1.desc">Hərf n-qramları (char_wb, 2–5) şəkilçi dəyişikliklərini tutur.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-in">
+            <div class="card-head">
+              <span class="card-idx">02</span>
+              <span class="card-key" data-i18n="card2.key">Model</span>
+              <span class="dot-blue"></span>
+            </div>
+            <div class="card-val" data-i18n="card2.val">Logistic Regression</div>
+            <div class="card-desc" data-i18n="card2.desc">Hər şöbə üçün ehtimal qaytarır — faiz modelin öz çıxışıdır.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-in">
+            <div class="card-head">
+              <span class="card-idx">03</span>
+              <span class="card-key" data-i18n="card3.key">Yönləndirmə</span>
+              <span class="dot-blue"></span>
+            </div>
+            <div class="card-val" data-i18n="card3.val">Avtomatik bilet</div>
+            <div class="card-desc" data-i18n="card3.desc">Ən yüksək ehtimallı şöbənin növbəsinə düşür.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 — SHAPE / FORM ============ -->
+<section class="sec" id="shape">
+  <div class="pe">
+    <div class="label-mono reveal" data-i18n="s3.label">[ 03 — Şöbə ]</div>
+    <h2 class="h-big reveal" style="margin-top:24px;max-width:42rem" data-delay="0.1" data-i18n="s3.title">Dörd şöbə, bir mətn.</h2>
+  </div>
+
+  <div class="shape-bottom pe">
+    <p class="body-p reveal" data-delay="0.15" data-i18n="s3.para">Dekanat, Maliyyə, Kitabxana və İT Dəstək. Model müraciətinizi bunlardan birinə yönləndirir və etibarlılıq faizini göstərir.
+    </p>
+    <div class="reveal" data-delay="0.28">
+      <span class="pill-hint">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 12.586 19 19"/><path d="M3.688 3.037a.497.497 0 0 0-.651.651l6.5 15.999a.501.501 0 0 0 .947-.062l1.569-6.083a2 2 0 0 1 1.448-1.479l6.124-1.579a.5.5 0 0 0 .063-.947z"/></svg>
+        <span data-i18n="s3.pill">Şöbələri gör</span>
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 04 — RELEASE ============ -->
+<section class="sec" id="release">
+  <div class="release-inner pe">
+    <div class="label-mono reveal" data-i18n="s4.label">[ 04 — İzləmə ]</div>
+    <h2 class="h-release reveal" style="margin-top:28px" data-delay="0.12" data-i18n="s4.title">Müraciətiniz<br>itmir.</h2>
+    <p class="body-p reveal" style="margin:32px auto 0;max-width:28rem" data-delay="0.24" data-i18n="s4.para">Bilet nömrəsi, hansı şöbəyə getdiyi və statusu — hamısı panelinizdə. Şöbə əməkdaşı statusu dəyişdikdə siz də görürsünüz.
+    </p>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer id="footer">
+  <div class="bloom bloom-a"></div>
+  <div class="bloom bloom-b"></div>
+
+  <div class="marquee">
+    <div class="marquee-track" id="marquee-track"></div>
+  </div>
+
+  <div class="footer-body">
+    <div class="footer-grid">
+      <div class="fg-5 reveal-sm">
+        <div class="f-label" data-i18n="f.label">[ Müraciətiniz var? ]</div>
+        <h2 class="f-head" data-i18n="f.title">Yazın —<br>biz yönləndirək.</h2>
+        <a class="mail-pill" href="/classifier">
+          <span data-i18n="f.cta">Müraciət göndər</span>
+          <span class="mail-orb">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+          </span>
+        </a>
+      </div>
+
+      <div class="fg-7">
+        <div class="link-cols" id="link-cols"></div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="fb-left">
+        <span class="fb-mark">DEPTIFY</span>
+        <span class="fb-dot"></span>
+        <span class="fb-copy" data-i18n="f.copy">© 2026 Tələbə Müraciətlərinin Avtomatik Yönləndirilməsi — Bütün hüquqlar qorunur.</span>
+      </div>
+      <div class="socials">
+        <a class="social-btn" href="#" aria-label="Twitter"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg></a>
+        <a class="social-btn" href="#" aria-label="Instagram"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg></a>
+        <a class="social-btn" href="#" aria-label="LinkedIn"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></svg></a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ STUDIO CONTROLS DRAWER ============ -->
+<div id="scrim"></div>
+<aside id="drawer" data-i18n-aria="aria.drawer" aria-label="Classifier controls">
+  <div class="dr-head">
+    <div class="dr-title">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>
+      <h2 data-i18n="drawer.title">Classifier Controls</h2>
+    </div>
+    <button class="dr-close" id="close-drawer" data-i18n-aria="aria.closeControls" aria-label="Close classifier controls">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    </button>
+  </div>
+
+  <p class="dr-note" data-i18n="drawer.note">Vizual sahə müraciətin mətndən şöbəyə keçid prosesini təmsil edir. Tema seçimi yalnız görünüşə təsir edir.</p>
+
+  <div class="dr-section-title">
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>
+    <span data-i18n="drawer.themes">Vizual temalar</span>
+  </div>
+
+  <div class="themes" id="themes"></div>
+
+  <div class="dr-foot">
+    <div class="dr-meta"><span data-i18n="drawer.meta1">VISUAL ENGINE</span><span>THREE.JS WEBGL</span></div>
+    <div class="dr-meta"><span data-i18n="drawer.meta2a">CLASSIFICATION</span><span data-i18n="drawer.meta2b">PROFILE MATCHING</span></div>
+    <button class="reset-btn" id="reset-defaults">
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      <span data-i18n="drawer.reset">Reset Theme</span>
+    </button>
+  </div>
+</aside>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================================================
+   FIXED CONSTANTS
+   ============================================================ */
+const THEMES = [
+  { id:'roseGold',   primaryColor:'#2F69FF', ballColor:'#2F69FF' },
+  { id:'pinkBlush',  primaryColor:'#FFA6B3', ballColor:'#FFC5C2' },
+  { id:'voltLime',   primaryColor:'#E1FC03', ballColor:'#E1FC03' },
+  { id:'arcticBlue', primaryColor:'#96E5FF', ballColor:'#96E5FF' },
+];
+const DEFAULT_THEME_ID = 'roseGold';
+
+const BG_HERO = 'radial-gradient(circle at center, #ffffff 0%, #ecefff 35%, #c2d1ff 100%)';
+const BG_LIME = 'radial-gradient(circle at center, #ffffff 0%, #fbffe5 38%, #e8ff9c 100%)';
+const BG_PINK = 'radial-gradient(circle at center, #ffffff 0%, #fff0f1 38%, #ffd1d5 100%)';
+const BG_BY_STAGE = [BG_HERO, BG_LIME, BG_PINK];
+
+
+const ARROW_UR = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>';
+
+/* ============================================================
+   SHARED STATE
+   ============================================================ */
+const control = { progress: 0, started: false };
+const mousePos = { x: 99, y: 99, isDown: false };
+let drawerOpen = false;
+
+/* ============================================================
+   I18N — Azerbaijani (default), English, Russian
+   ============================================================ */
+const LANGS = ['az', 'en', 'ru'];
+const DEFAULT_LANG = 'az';
+const LANG_STORE_KEY = 'deptify.lang';
+
+const I18N = {
+  az: {
+    'doc.title': "DEPTIFY — Tələbə Müraciətlərinin Avtomatik Yönləndirilməsi",
+    'nav.classifier': "Müraciət göndər", 'nav.departments': "Müraciətlərim",
+    'nav.how': "Necə işləyir", 'nav.about': "Haqqımızda", 'nav.contact': "Əlaqə",
+    'cta.header': "Müraciət yaz",
+    'hero.eyebrow': "[ Müraciət yönləndirmə ]",
+    'hero.title': "Yaz. Biz yönləndirək.",
+    'hero.para': "Şikayət, sorğu və ya təklifinizi öz sözlərinizlə yazın — model mətni təhlil edir və müraciəti məsul şöbəyə göndərir.",
+    'hero.credit': "© 2026 — NLP əsaslı müraciət təsnifatı",
+    'hero.scroll': "Kəşf et",
+    's2.label': "[ 02 — Təhlil ]",
+    's2.title': "Mətn<br>siqnala çevrilir.",
+    's2.para': "Yazdığınız cümlə təmizlənir və hərf n-qramlarına bölünür. Azərbaycan dili aqlütinativdir — «kitab», «kitabı», «kitabxanadan» eyni kökü daşıyır, model bunu görür.",
+    'card1.key': "Vektorizasiya", 'card1.val': "TF-IDF",
+    'card1.desc': "Hərf n-qramları (char_wb, 2–5) şəkilçi dəyişikliklərini tutur.",
+    'card2.key': "Model", 'card2.val': "Logistic Regression",
+    'card2.desc': "Hər şöbə üçün ehtimal qaytarır — faiz modelin öz çıxışıdır.",
+    'card3.key': "Yönləndirmə", 'card3.val': "Avtomatik bilet",
+    'card3.desc': "Ən yüksək ehtimallı şöbənin növbəsinə düşür.",
+    's3.label': "[ 03 — Şöbə ]",
+    's3.title': "Dörd şöbə, bir mətn.",
+    's3.para': "Dekanat, Maliyyə, Kitabxana və İT Dəstək. Model müraciətinizi bunlardan birinə yönləndirir və etibarlılıq faizini göstərir.",
+    's3.pill': "Şöbələri gör",
+    's4.label': "[ 04 — İzləmə ]",
+    's4.title': "Müraciətiniz<br>itmir.",
+    's4.para': "Bilet nömrəsi, hansı şöbəyə getdiyi və statusu — hamısı panelinizdə. Şöbə əməkdaşı statusu dəyişdikdə siz də görürsünüz.",
+    'marquee': ["Yaz, göndər", "Avtomatik yönləndirmə", "Doğru şöbəyə", "Cavabı izlə"],
+    'f.label': "[ Müraciətiniz var? ]",
+    'f.title': "Yazın —<br>biz yönləndirək.",
+    'f.cta': "Müraciət göndər",
+    'f.copy': "© 2026 Tələbə Müraciətlərinin Avtomatik Yönləndirilməsi — Bütün hüquqlar qorunur.",
+    'footerCols': [
+      { title: 'Klassifikator', links: [['Təhlilə başla','/classifier'], ['Necə işləyir','/how-it-works'], ['Müraciətlərim','/requests'], ['Maliyyə','/how-it-works']] },
+      { title: 'Platforma', links: [['Haqqımızda','/about'], ['Metodologiya','/how-it-works'], ['Texnologiya','/about'], ['FAQ','/how-it-works']] },
+      { title: 'Resurslar', links: [['Dekanat','/how-it-works'], ['Maliyyə','/how-it-works'], ['Təlimatlar','/how-it-works'], ['Əlaqə','/contact']] },
+    ],
+    'drawer.title': 'Tənzimləmələr',
+    'drawer.note': "Vizual sahə müraciətin mətndən şöbəyə keçid prosesini təmsil edir. Tema seçimi yalnız görünüşə təsir edir.",
+    'drawer.themes': "Vizual temalar",
+    'drawer.meta1': 'VİZUAL MÜHƏRRİK',
+    'drawer.meta2a': "TƏSNİFAT", 'drawer.meta2b': "TF-IDF + LOGREG",
+    'drawer.reset': 'Temanı sıfırla',
+    'theme.roseGold.name': "Kobalt mavi",
+    'theme.roseGold.desc': "Müraciət axınını təmsil edən fokuslanmış mavi mühit.",
+    'theme.pinkBlush.name': "Çəhrayı",
+    'theme.pinkBlush.desc': "Daha yumşaq, isti vizual tema.",
+    'theme.voltLime.name': "Neon yaşıl",
+    'theme.voltLime.desc': "Enerjili, texniki hiss verən tema.",
+    'theme.arcticBlue.name': "Arktik mavi",
+    'theme.arcticBlue.desc': "Aydın və sakit vizual tema.",
+    'loader.loading': "Sistem hazırlanır", 'loader.ready': "Hazırdır",
+    'aria.lang': 'Dili dəyiş', 'aria.langList': 'Dil seçimi',
+    'aria.openControls': 'Tənzimləmələri aç', 'aria.closeControls': 'Tənzimləmələri bağla',
+    'aria.drawer': 'Klassifikator tənzimləmələri',
+  },
+
+  en: {
+    'doc.title': "DEPTIFY — Student Request Routing",
+    'nav.classifier': "Submit request", 'nav.departments': "My requests",
+    'nav.how': "How it works", 'nav.about': "About", 'nav.contact': "Contact",
+    'cta.header': "Write request",
+    'hero.eyebrow': "[ Request routing ]",
+    'hero.title': "Write it. We route it.",
+    'hero.para': "Describe your complaint, question or suggestion in your own words — the model reads it and sends it to the responsible department.",
+    'hero.credit': "© 2026 — NLP-based request classification",
+    'hero.scroll': "Explore",
+    's2.label': "[ 02 — Analysis ]",
+    's2.title': "Text becomes<br>signal.",
+    's2.para': "Your sentence is cleaned and split into character n-grams. Azerbaijani is agglutinative — \"kitab\", \"kitabı\" and \"kitabxanadan\" share a root, and the model sees it.",
+    'card1.key': "Vectorisation", 'card1.val': "TF-IDF",
+    'card1.desc': "Character n-grams (char_wb, 2–5) survive suffix changes.",
+    'card2.key': "Model", 'card2.val': "Logistic Regression",
+    'card2.desc': "Returns a probability per department — the percentage is the model output.",
+    'card3.key': "Routing", 'card3.val': "Automatic ticket",
+    'card3.desc': "Lands in the queue of the highest-probability department.",
+    's3.label': "[ 03 — Departments ]",
+    's3.title': "Four desks, one message.",
+    's3.para': "Dekanat, Maliyyə, Kitabxana and İT Dəstək. The model routes your request to one of them and shows how confident it is.",
+    's3.pill': "See the departments",
+    's4.label': "[ 04 — Tracking ]",
+    's4.title': "Nothing<br>gets lost.",
+    's4.para': "Ticket number, assigned department and status — all in your panel. When staff move the status, you see it too.",
+    'marquee': ["Write it", "Routed automatically", "To the right desk", "Track the answer"],
+    'f.label': "[ Got a request? ]",
+    'f.title': "Write it —<br>we route it.",
+    'f.cta': "Submit request",
+    'f.copy': "© 2026 Student Request Routing — All rights reserved.",
+    'footerCols': [
+      { title: 'Classifier', links: [['Start Analysis','/classifier'], ['How It Works','/how-it-works'], ['My requests','/requests'], ['Maliyyə','/how-it-works']] },
+      { title: 'Platform', links: [['About','/about'], ['Methodology','/how-it-works'], ['Technology','/about'], ['FAQ','/how-it-works']] },
+      { title: 'Resources', links: [['Dekanat','/how-it-works'], ['Maliyyə','/how-it-works'], ['Guidelines','/how-it-works'], ['Contact','/contact']] },
+    ],
+    'drawer.title': 'Classifier Controls',
+    'drawer.note': "The visual field represents a request moving from text to department. The theme only changes how it looks.",
+    'drawer.themes': "Visual themes",
+    'drawer.meta1': 'VISUAL ENGINE',
+    'drawer.meta2a': "CLASSIFICATION", 'drawer.meta2b': "TF-IDF + LOGREG",
+    'drawer.reset': 'Reset Theme',
+    'theme.roseGold.name': "Cobalt Blue",
+    'theme.roseGold.desc': "A focused blue field representing the flow of requests.",
+    'theme.pinkBlush.name': "Rose",
+    'theme.pinkBlush.desc': "A softer, warmer visual theme.",
+    'theme.voltLime.name': "Neon Lime",
+    'theme.voltLime.desc': "An energetic, technical-feeling theme.",
+    'theme.arcticBlue.name': "Arctic Blue",
+    'theme.arcticBlue.desc': "A clear and calm visual theme.",
+    'loader.loading': "Preparing the system", 'loader.ready': "Ready",
+    'aria.lang': 'Change language', 'aria.langList': 'Language selection',
+    'aria.openControls': 'Open classifier controls', 'aria.closeControls': 'Close classifier controls',
+    'aria.drawer': 'Classifier controls',
+  },
+
+  ru: {
+    'doc.title': "DEPTIFY — Маршрутизация обращений студентов",
+    'nav.classifier': "Отправить обращение", 'nav.departments': "Мои обращения",
+    'nav.how': "Как это работает", 'nav.about': "О проекте", 'nav.contact': "Контакты",
+    'cta.header': "Написать",
+    'hero.eyebrow': "[ Маршрутизация обращений ]",
+    'hero.title': "Напишите. Мы направим.",
+    'hero.para': "Опишите жалобу, вопрос или предложение своими словами — модель прочитает текст и отправит его в ответственный отдел.",
+    'hero.credit': "© 2026 — Классификация обращений на основе NLP",
+    'hero.scroll': "Смотреть",
+    's2.label': "[ 02 — Анализ ]",
+    's2.title': "Текст становится<br>сигналом.",
+    's2.para': "Предложение очищается и разбивается на символьные n-граммы. Азербайджанский язык агглютинативный — «kitab», «kitabı», «kitabxanadan» имеют общий корень, и модель это видит.",
+    'card1.key': "Векторизация", 'card1.val': "TF-IDF",
+    'card1.desc': "Символьные n-граммы (char_wb, 2–5) устойчивы к суффиксам.",
+    'card2.key': "Модель", 'card2.val': "Logistic Regression",
+    'card2.desc': "Возвращает вероятность по каждому отделу — процент берётся из модели.",
+    'card3.key': "Маршрутизация", 'card3.val': "Авто-тикет",
+    'card3.desc': "Попадает в очередь отдела с наибольшей вероятностью.",
+    's3.label': "[ 03 — Отделы ]",
+    's3.title': "Четыре отдела, один текст.",
+    's3.para': "Dekanat, Maliyyə, Kitabxana и İT Dəstək. Модель направляет обращение в один из них и показывает уверенность.",
+    's3.pill': "Посмотреть отделы",
+    's4.label': "[ 04 — Отслеживание ]",
+    's4.title': "Обращение<br>не теряется.",
+    's4.para': "Номер тикета, отдел и статус — всё в вашей панели. Когда сотрудник меняет статус, вы это видите.",
+    'marquee': ["Напишите", "Автоматическая маршрутизация", "В нужный отдел", "Следите за ответом"],
+    'f.label': "[ Есть обращение? ]",
+    'f.title': "Напишите —<br>мы направим.",
+    'f.cta': "Отправить обращение",
+    'f.copy': "© 2026 Автоматическая маршрутизация обращений — Все права защищены.",
+    'footerCols': [
+      { title: 'Классификатор', links: [['Начать анализ','/classifier'], ['Как это работает','/how-it-works'], ['Мои обращения','/requests'], ['Maliyyə','/how-it-works']] },
+      { title: 'Платформа', links: [['О проекте','/about'], ['Методология','/how-it-works'], ['Технология','/about'], ['FAQ','/how-it-works']] },
+      { title: 'Ресурсы', links: [['Dekanat','/how-it-works'], ['Maliyyə','/how-it-works'], ['Руководства','/how-it-works'], ['Контакты','/contact']] },
+    ],
+    'drawer.title': 'Настройки',
+    'drawer.note': "Визуальное поле отражает путь обращения от текста до отдела. Тема влияет только на внешний вид.",
+    'drawer.themes': "Визуальные темы",
+    'drawer.meta1': 'ВИЗУАЛЬНЫЙ ДВИЖОК',
+    'drawer.meta2a': "КЛАССИФИКАЦИЯ", 'drawer.meta2b': "TF-IDF + LOGREG",
+    'drawer.reset': 'Сбросить тему',
+    'theme.roseGold.name': "Кобальт",
+    'theme.roseGold.desc': "Сфокусированное синее поле, отражающее поток обращений.",
+    'theme.pinkBlush.name': "Розовый",
+    'theme.pinkBlush.desc': "Более мягкая и тёплая визуальная тема.",
+    'theme.voltLime.name': "Неоновый лайм",
+    'theme.voltLime.desc': "Энергичная, техничная тема.",
+    'theme.arcticBlue.name': "Арктический синий",
+    'theme.arcticBlue.desc': "Ясная и спокойная визуальная тема.",
+    'loader.loading': "Подготовка системы", 'loader.ready': "Готово",
+    'aria.lang': 'Сменить язык', 'aria.langList': 'Выбор языка',
+    'aria.openControls': 'Открыть настройки', 'aria.closeControls': 'Закрыть настройки',
+    'aria.drawer': 'Настройки классификатора',
+  },
+};
+
+let currentLang = (() => {
+  try {
+    const stored = localStorage.getItem(LANG_STORE_KEY);
+    if (stored && LANGS.includes(stored)) return stored;
+  } catch (e) { /* storage blocked */ }
+  return DEFAULT_LANG;   // first open is always Azerbaijani
+})();
+
+const t = (key) => I18N[currentLang][key] ?? I18N[DEFAULT_LANG][key] ?? key;
+
+/* ============================================================
+   STATIC MARKUP GENERATION
+   ============================================================ */
+function buildMarquee(){
+  const track = document.getElementById('marquee-track');
+  const unit = t('marquee')
+    .map(w => `<span class="marquee-word">${w}</span><span class="marquee-dot"></span>`)
+    .join('');
+  track.innerHTML = unit + unit; // duplicated for a seamless -50% loop
+}
+buildMarquee();
+
+// Words are swapped in place so the 26s marquee animation is never restarted.
+function updateMarquee(){
+  const words = t('marquee');
+  document.querySelectorAll('#marquee-track .marquee-word')
+    .forEach((el, i) => { el.textContent = words[i % words.length]; });
+}
+
+function buildFooterCols(){
+  const wrap = document.getElementById('link-cols');
+  wrap.innerHTML = t('footerCols').map((col, i) => `
+    <div class="link-col reveal-sm" data-delay="${(i * 0.08).toFixed(2)}">
+      <h3>${col.title}</h3>
+      <ul>
+        ${col.links.map(([label, href]) => `<li><a href="${href}">${label}${ARROW_UR}</a></li>`).join('')}
+      </ul>
+    </div>`).join('');
+}
+buildFooterCols();
+
+// In-place text update, so each column keeps whatever reveal state it has already reached.
+function updateFooterCols(){
+  const cols = t('footerCols');
+  document.querySelectorAll('#link-cols .link-col').forEach((colEl, i) => {
+    const col = cols[i];
+    if (!col) return;
+    colEl.querySelector('h3').textContent = col.title;
+    colEl.querySelectorAll('a').forEach((a, j) => {
+      const [label, href] = col.links[j];
+      a.setAttribute('href', href);
+      a.innerHTML = label + ARROW_UR;
+    });
+  });
+}
+
+/* ============================================================
+   POINTER TRACKING
+   ============================================================ */
+window.addEventListener('pointermove', (e) => {
+  mousePos.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mousePos.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+window.addEventListener('mousedown', () => { mousePos.isDown = true; });
+window.addEventListener('mouseup',   () => { mousePos.isDown = false; });
+
+/* ============================================================
+   SMOOTH SCROLL (Lenis-style, lerp 0.09)
+   ============================================================ */
+const LERP = 0.09;
+const WHEEL_MULTIPLIER = 1;
+let smoothTarget = window.scrollY;
+let smoothCurrent = window.scrollY;
+let lastAppliedScroll = window.scrollY;
+
+const maxScroll = () =>
+  Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+
+window.addEventListener('wheel', (e) => {
+  if (e.ctrlKey) return;              // pinch-zoom
+  if (drawerOpen) return;             // let the drawer scroll natively
+  e.preventDefault();
+  smoothTarget = Math.min(maxScroll(), Math.max(0, smoothTarget + e.deltaY * WHEEL_MULTIPLIER));
+}, { passive: false });
+
+// Re-sync when scroll comes from anywhere else (scrollbar drag, keys, touch, anchors).
+// Checked synchronously at the top of the rAF rather than in a 'scroll' listener: the event
+// can land after the next frame has already re-applied the stale position, which would
+// silently undo programmatic scrolls and anchor jumps.
+const syncExternalScroll = () => {
+  if (Math.abs(window.scrollY - lastAppliedScroll) > 2) {
+    smoothTarget = smoothCurrent = lastAppliedScroll = window.scrollY;
+  }
+};
+
+/* ============================================================
+   SCROLL -> PHYSICS PROGRESS + BACKGROUND STAGE
+   ============================================================ */
+const bgEl = document.getElementById('bg-gradient');
+let bgStage = -1;
+
+function updateProgress() {
+  const vh = window.innerHeight || 1;
+  const progress = window.scrollY / vh;   // 0 = hero, 1 = drop, 2 = shape, 3 = release
+  control.progress = progress;
+
+  const stage = progress > 1.55 ? 2 : progress > 0.7 ? 1 : 0;
+  if (stage !== bgStage) {
+    bgStage = stage;
+    bgEl.style.background = stage === 0 ? heroGradient : BG_BY_STAGE[stage];
+  }
+}
+
+let heroGradient = BG_HERO;
+
+// One rAF drives both the smooth-scroll lerp and the progress readout.
+function pageLoop() {
+  requestAnimationFrame(pageLoop);
+  syncExternalScroll();
+
+  const target = Math.min(maxScroll(), Math.max(0, smoothTarget));
+  smoothTarget = target;
+  smoothCurrent += (target - smoothCurrent) * LERP;
+  if (Math.abs(target - smoothCurrent) < 0.08) smoothCurrent = target;
+
+  if (Math.abs(smoothCurrent - window.scrollY) > 0.05) {
+    lastAppliedScroll = smoothCurrent;
+    window.scrollTo(0, smoothCurrent);
+  }
+  updateProgress();
+}
+requestAnimationFrame(pageLoop);
+window.addEventListener('resize', updateProgress);
+updateProgress();
+
+/* ============================================================
+   REVEAL (IntersectionObserver, once, ~45% visible)
+   ============================================================ */
+const revealObserver = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    if (!entry.isIntersecting) continue;
+    const el = entry.target;
+    const delay = parseFloat(el.dataset.delay || '0');
+    el.style.transitionDelay = `${delay}s`;
+    el.classList.add('in');
+    revealObserver.unobserve(el);
+  }
+}, { threshold: 0.45 });
+
+document.querySelectorAll('.reveal, .reveal-sm').forEach(el => revealObserver.observe(el));
+
+/* ============================================================
+   THREE.JS SCENE
+   ============================================================ */
+function createScene(ballColor, onReady) {
+  const container = document.getElementById('canvas-wrap');
+  // A fresh canvas per mount: once a context is disposed it cannot be revived on the same element.
+  const canvas = document.createElement('canvas');
+  canvas.id = 'gl';
+  container.replaceChildren(canvas);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, container.clientWidth / container.clientHeight, 0.1, 100);
+  camera.position.set(0, 0, 11);
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const hemiLight = new THREE.HemisphereLight(0xffffff, new THREE.Color(ballColor), 1.6);
+  scene.add(hemiLight);
+
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
+  keyLight.position.set(-6, 10, 8);
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.width = 2048;
+  keyLight.shadow.mapSize.height = 2048;
+  keyLight.shadow.camera.near = 0.5;
+  keyLight.shadow.camera.far = 30;
+  keyLight.shadow.camera.left = -8;
+  keyLight.shadow.camera.right = 8;
+  keyLight.shadow.camera.top = 8;
+  keyLight.shadow.camera.bottom = -8;
+  keyLight.shadow.bias = -0.0003;
+  keyLight.shadow.radius = 12.0;
+  scene.add(keyLight);
+
+  const rimLight = new THREE.DirectionalLight(0xffffff, 1.25);
+  rimLight.position.set(8, 7, -8);
+  scene.add(rimLight);
+
+  const frontLight = new THREE.DirectionalLight(0xffffff, 0.4);
+  frontLight.position.set(0, 0, 11);
+  scene.add(frontLight);
+
+  const sideBounceLight = new THREE.DirectionalLight(0xffffff, 0.3);
+  sideBounceLight.position.set(-9, -2, 4);
+  scene.add(sideBounceLight);
+
+  /* ---- viewport frustum bounds ---- */
+  let viewportWidth = 10;
+  let viewportHeight = 6;
+  const updateFrustumBounds = () => {
+    const fovRad = THREE.MathUtils.degToRad(camera.fov);
+    viewportHeight = 2 * Math.tan(fovRad / 2) * camera.position.z;
+    viewportWidth = viewportHeight * (container.clientWidth / container.clientHeight);
+  };
+  updateFrustumBounds();
+
+  const isMobile = window.innerWidth < 768;
+  const ballCount = isMobile ? 54 : 96;
+
+  /* ---- palette ---- */
+  const getDynamicColors = (baseColor) => {
+    const hex = baseColor.toLowerCase();
+    if (hex === '#e1fc03') {
+      return { pastel: new THREE.Color('#FBFFE2'), light: new THREE.Color('#EFFE69'),
+        medium: new THREE.Color('#E1FC03'), deep: new THREE.Color('#B1E200'), glass: new THREE.Color('#DCFF32') };
+    } else if (hex === '#ffc5c2' || hex === '#ffa19e') {
+      return { pastel: new THREE.Color('#FFF5F4'), light: new THREE.Color('#FFECEB'),
+        medium: new THREE.Color('#FFA6B3'), deep: new THREE.Color('#FF4D6D'), glass: new THREE.Color('#FFA6B3') };
+    } else if (hex === '#96e5ff') {
+      return { pastel: new THREE.Color('#F0F9FF'), light: new THREE.Color('#C9F1FF'),
+        medium: new THREE.Color('#96E5FF'), deep: new THREE.Color('#2BA5FF'), glass: new THREE.Color('#98E4FF') };
+    } else if (hex === '#2f69ff') {
+      return { pastel: new THREE.Color('#ECEFFF'), light: new THREE.Color('#A8C1FF'),
+        medium: new THREE.Color('#2F69FF'), deep: new THREE.Color('#0A33BF'), glass: new THREE.Color('#4D80FF') };
+    } else if (hex === '#141414' || hex === '#000000') {
+      return { pastel: new THREE.Color('#D8D8D8'), light: new THREE.Color('#555555'),
+        medium: new THREE.Color('#242424'), deep: new THREE.Color('#0A0A0A'), glass: new THREE.Color('#1F1F1F') };
+    }
+    const c = new THREE.Color(baseColor);
+    return { pastel: c.clone().offsetHSL(0, -0.15, 0.25), light: c.clone().offsetHSL(0, -0.05, 0.12),
+      medium: c.clone(), deep: c.clone().offsetHSL(0.01, 0.1, -0.12), glass: c.clone() };
+  };
+
+  const palette = getDynamicColors(ballColor);
+  const isBlack = ['#141414', '#18181b', '#000000'].includes(ballColor.toLowerCase());
+
+  const palHero = palette;
+  const palLime = getDynamicColors('#E1FC03');
+  const palPink = getDynamicColors('#FFC5C2');
+  const ROLES = ['pastel', 'light', 'medium', 'deep', 'glass'];
+  const curPal = { pastel: new THREE.Color(), light: new THREE.Color(), medium: new THREE.Color(),
+    deep: new THREE.Color(), glass: new THREE.Color() };
+
+  /* ---- spheres ---- */
+  const sphereGeometry = new THREE.SphereGeometry(1, 48, 48);
+  const balls = [];
+  for (let i = 0; i < ballCount; i++) {
+    let radius = 0.33;
+    const rand = Math.random();
+    if (rand < 0.3) radius = 0.27 + Math.random() * 0.12;
+    else if (rand < 0.8) radius = 0.42 + Math.random() * 0.18;
+    else radius = 0.66 + Math.random() * 0.21;
+
+    const mass = Math.pow(radius, 3);
+
+    let chosenColor = palette.medium;
+    let color = palette.medium;
+    let sphereMat;
+    let role = 'medium';
+
+    const isGlass = Math.random() < 0.22 && !isBlack;
+
+    if (isGlass) {
+      sphereMat = new THREE.MeshPhysicalMaterial({
+        color: palette.glass, roughness: 0.08, metalness: 0.0,
+        clearcoat: 1.0, clearcoatRoughness: 0.03, transmission: 0.95,
+        ior: 1.485, thickness: 2.2,
+        specularColor: new THREE.Color('#ffffff'), specularIntensity: 1.0,
+        attenuationColor: palette.pastel, attenuationDistance: 1.0,
+        emissive: palette.glass, emissiveIntensity: 0.12,
+        transparent: true,
+      });
+      color = palette.glass;
+      role = 'glass';
+    } else {
+      const colorRand = Math.random();
+      if (colorRand < 0.25) { chosenColor = palette.pastel; role = 'pastel'; }
+      else if (colorRand < 0.55) { chosenColor = palette.light; role = 'light'; }
+      else if (colorRand < 0.85) { chosenColor = palette.medium; role = 'medium'; }
+      else { chosenColor = palette.deep; role = 'deep'; }
+
+      sphereMat = new THREE.MeshPhysicalMaterial({
+        color: chosenColor, roughness: 0.44, metalness: 0.0,
+        clearcoat: 0.24, clearcoatRoughness: 0.35,
+        emissive: isBlack ? new THREE.Color('#000000') : chosenColor,
+        emissiveIntensity: isBlack ? 0.0 : 0.08,
+        transparent: true,
+      });
+      color = chosenColor;
+    }
+
+    const group = new THREE.Group();
+    const sphereMesh = new THREE.Mesh(sphereGeometry, sphereMat);
+    sphereMesh.scale.setScalar(radius);
+    sphereMesh.castShadow = true;
+    sphereMesh.receiveShadow = true;
+    group.add(sphereMesh);
+    scene.add(group);
+
+    balls.push({
+      id: i, radius, mass,
+      position: new THREE.Vector3(0, 0, 0),
+      velocity: new THREE.Vector3(),
+      meshGroup: group, sphere: sphereMesh, material: sphereMat, role, isGlass,
+      visualScale: radius, color,
+      restPosition: new THREE.Vector3(0, 0, 0),
+      shapeTarget: new THREE.Vector3(),
+      angleY: Math.random() * Math.PI * 2,
+      angleZ: 0.1 + Math.random() * 0.45,
+    });
+  }
+
+  const meanRadius = balls.reduce((sum, b) => sum + b.radius, 0) / balls.length;
+  let shapeScale = 1;
+
+  /* ---- heart silhouette targets ---- */
+  const inHeart = (x, y) => {
+    const a = x * x + y * y - 1;
+    return a * a * a - x * x * y * y * y <= 0;
+  };
+  const assignHeartTargets = () => {
+    const S = Math.min(viewportWidth * 0.30, viewportHeight * 0.27);
+    const baseCY = -viewportHeight * 0.03;
+    shapeScale = Math.max(0.3, Math.min(1, (S * 0.45 / 2.3) / meanRadius));
+    for (let i = 0; i < balls.length; i++) {
+      let x = 0, y = 0, tries = 0;
+      do {
+        x = (Math.random() * 2 - 1) * 1.25;
+        y = Math.random() * 2.55 - 1.4;
+        tries++;
+      } while (!inHeart(x, y) && tries < 60);
+      balls[i].shapeTarget.set(x * S, (y + 0.12) * S + baseCY, (Math.random() - 0.5) * 0.35);
+    }
+  };
+  assignHeartTargets();
+
+  /* ---- entrance scatter ---- */
+  const scatterFar = (withInwardVelocity) => {
+    const R = Math.max(viewportWidth, viewportHeight) * 1.5;
+    for (const b of balls) {
+      const a = Math.random() * Math.PI * 2;
+      const px = Math.cos(a) * R * 1.25;
+      const py = Math.sin(a) * R * 0.85;
+      const pz = (Math.random() - 0.5) * 4;
+      b.position.set(px, py, pz);
+      b.meshGroup.position.copy(b.position);
+      if (withInwardVelocity) {
+        b.velocity.set(-px, -py, -pz).normalize().multiplyScalar(0.08 + Math.random() * 0.05);
+      } else {
+        b.velocity.set(0, 0, 0);
+      }
+    }
+  };
+  scatterFar(false);
+
+  /* ---- simulation params & mouse projection ---- */
+  const params = {
+    gravity: 0, rebound: -0.3,
+    mouseRepelForce: 0.05, mouseRepelRadius: 4.4,
+    damping: 0.91, centerAttractForce: 0.0035, bounciness: 0.02,
+  };
+
+  const mouseProjVec = new THREE.Vector3();
+  const mouseWorld3D = new THREE.Vector3();
+  const updateMouse3D = () => {
+    if (!mousePos) return;
+    mouseProjVec.set(mousePos.x, mousePos.y, 0.5);
+    mouseProjVec.unproject(camera);
+    const dir = mouseProjVec.sub(camera.position).normalize();
+    const distance = -camera.position.z / dir.z;
+    mouseWorld3D.copy(camera.position).add(dir.multiplyScalar(distance));
+  };
+
+  /* ---- math helpers ---- */
+  const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+  const smoothstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+  /* ---- animation / physics loop ---- */
+  let animationFrameId = 0;
+  const clock = new THREE.Clock();
+  let localStarted = false;
+  let entranceStart = 0;
+  let reportedReady = false;
+
+  const diffVec = new THREE.Vector3();
+  const collideDiff = new THREE.Vector3();
+  const relVel = new THREE.Vector3();
+  const deltaPos = new THREE.Vector3();
+  const rotAxis = new THREE.Vector3();
+  const prevMouseWorld = new THREE.Vector3();
+  let mouseSpeed = 0;
+
+  const simulateAndRender = () => {
+    animationFrameId = requestAnimationFrame(simulateAndRender);
+
+    const time = clock.getElapsedTime();
+    clock.getDelta();
+    updateMouse3D();
+
+    const ctrl = control;
+
+    if (ctrl?.started && !localStarted) {
+      localStarted = true;
+      entranceStart = time;
+      scatterFar(true);
+    }
+
+    if (!localStarted) {
+      renderer.render(scene, camera);
+      if (!reportedReady) { reportedReady = true; onReady(); }
+      return;
+    }
+
+    const progress = ctrl?.progress ?? 0;
+
+    // --- mode blend factors ---
+    const heroF = 1 - smoothstep(0.30, 0.80, progress);
+    const dropRaw = smoothstep(0.40, 0.95, progress);
+    const flyF = smoothstep(2.7, 3.45, progress);
+    const shapeF = smoothstep(1.40, 2.05, progress) * (1 - smoothstep(2.55, 3.0, progress));
+    const dropF = dropRaw * (1 - smoothstep(1.25, 1.75, progress));
+
+    // --- scroll-driven palette morph: hero -> volt-lime -> rose-pink ---
+    const bLime = smoothstep(0.55, 1.05, progress);
+    const bPink = smoothstep(1.40, 1.95, progress);
+    for (const role of ROLES) {
+      curPal[role].copy(palHero[role]).lerp(palLime[role], bLime).lerp(palPink[role], bPink);
+    }
+    hemiLight.groundColor.copy(curPal.medium);
+
+    const entranceT = easeOutCubic(clamp01((time - entranceStart) / 2.2));
+    const attractionBoost = lerp(7.5, 1, entranceT);
+
+    const isMouseInteracting = !!mousePos &&
+      (Math.abs(mousePos.x) < 0.99 || Math.abs(mousePos.y) < 0.99);
+
+    mouseSpeed = isMouseInteracting ? mouseWorld3D.distanceTo(prevMouseWorld) : 0;
+    if (mouseSpeed > 3) mouseSpeed = 3;
+    prevMouseWorld.copy(mouseWorld3D);
+
+    let damping = 0.91;
+    damping = lerp(damping, 0.992, dropF);
+    damping = lerp(damping, 0.90, shapeF);
+    damping = lerp(damping, 0.985, flyF);
+
+    const camZ = camera.position.z;
+    const clusterActive = Math.max(heroF, entranceT < 1 ? 1 : 0);
+
+    // 1. ACCELERATIONS
+    for (let i = 0; i < balls.length; i++) {
+      const b = balls[i];
+
+      if (heroF > 0.01) {
+        b.velocity.x += Math.sin(time * 0.4 + b.id * 1.5) * 0.0004 * b.radius * heroF;
+        b.velocity.y += Math.cos(time * 0.5 + b.id * 1.2) * 0.0004 * b.radius * heroF;
+        b.velocity.z += Math.sin(time * 0.35 + b.id) * 0.0001 * heroF;
+      }
+
+      const clusterStrength = params.centerAttractForce * attractionBoost * clusterActive;
+      if (clusterStrength > 0.00001) {
+        b.velocity.x += (0 - b.position.x) * clusterStrength * 0.38;
+        b.velocity.y += (0 - b.position.y) * clusterStrength * 1.85;
+        b.velocity.z += (0 - b.position.z) * clusterStrength * 1.8;
+      }
+
+      if (dropF > 0.001) {
+        b.velocity.y -= 0.011 * dropF;
+      }
+
+      if (shapeF > 0.001) {
+        const k = 0.06 * shapeF;
+        b.velocity.x += (b.shapeTarget.x - b.position.x) * k;
+        b.velocity.y += (b.shapeTarget.y - b.position.y) * k;
+        b.velocity.z += (b.shapeTarget.z - b.position.z) * k;
+      }
+
+      if (flyF > 0.001) {
+        const stagger = (b.id * 0.6180339887) % 1;
+        const local = smoothstep(stagger * 0.55, stagger * 0.55 + 0.45, flyF);
+        b.velocity.z += 0.05 * local;
+        b.velocity.x += b.position.x * 0.006 * local;
+        b.velocity.y += b.position.y * 0.006 * local;
+      }
+
+      if (mousePos && isMouseInteracting) {
+        diffVec.subVectors(b.position, mouseWorld3D);
+        const rawDist = diffVec.length();
+        const down = mousePos.isDown;
+        const activeRepelRadius = down ? params.mouseRepelRadius * 1.4 : params.mouseRepelRadius;
+        const activeRepelForce = down ? params.mouseRepelForce * 1.7 : params.mouseRepelForce;
+        if (rawDist < activeRepelRadius && rawDist > 0.0001) {
+          const ratio = rawDist / activeRepelRadius;
+          const smoothFactor = 1.0 - (ratio * ratio * (3.0 - 2.0 * ratio));
+          const speedBoost = 1 + mouseSpeed * 3.2;
+          const push = smoothFactor * activeRepelForce * speedBoost;
+          diffVec.normalize();
+          diffVec.z *= 0.12;
+          diffVec.normalize();
+          b.velocity.addScaledVector(diffVec, push);
+        }
+      }
+
+      b.velocity.multiplyScalar(damping);
+      b.position.addScaledVector(b.velocity, 1);
+
+      const c = b.isGlass ? curPal.glass : curPal[b.role];
+      b.material.color.copy(c);
+      if (!isBlack) b.material.emissive.copy(c);
+
+      b.material.opacity = flyF > 0.001
+        ? 1 - smoothstep(camZ - 2.6, camZ - 0.3, b.position.z)
+        : 1;
+
+      const targetVis = b.radius * (1 - (1 - shapeScale) * shapeF);
+      b.visualScale += (targetVis - b.visualScale) * 0.12;
+      b.sphere.scale.setScalar(b.visualScale);
+    }
+
+    // 2. PAIRWISE COLLISIONS
+    const collideScale = 0.28 * (1 - 0.93 * shapeF) * (1 - flyF);
+    const subSteps = 4;
+    for (let step = 0; step < subSteps; step++) {
+      for (let i = 0; i < balls.length; i++) {
+        for (let j = i + 1; j < balls.length; j++) {
+          const b1 = balls[i];
+          const b2 = balls[j];
+          collideDiff.subVectors(b2.position, b1.position);
+          const dist = collideDiff.length();
+          const minDist = b1.visualScale + b2.visualScale;
+          if (dist < minDist && dist > 0.001) {
+            const overlap = minDist - dist;
+            collideDiff.multiplyScalar(1 / dist);
+            const totalMass = b1.mass + b2.mass;
+            const ratio1 = b2.mass / totalMass;
+            const ratio2 = b1.mass / totalMass;
+            b1.position.addScaledVector(collideDiff, -overlap * ratio1 * collideScale);
+            b2.position.addScaledVector(collideDiff, overlap * ratio2 * collideScale);
+
+            relVel.subVectors(b2.velocity, b1.velocity);
+            const velAlongNormal = relVel.dot(collideDiff);
+            if (velAlongNormal < -0.0001) {
+              const impulse = -(1 + params.bounciness) * velAlongNormal / (1 / b1.mass + 1 / b2.mass);
+              b1.velocity.addScaledVector(collideDiff, -impulse / b1.mass);
+              b2.velocity.addScaledVector(collideDiff, impulse / b2.mass);
+            }
+          }
+        }
+      }
+    }
+
+    // 3. VIEWPORT WALLS + BOUNCY FLOOR
+    const borderPad = 0.2;
+    const xBound = viewportWidth / 2 - borderPad;
+    const topY = viewportHeight / 2 - 0.05;
+    const floorY = -viewportHeight / 2 + 0.05;
+    const zBound = 2.0;
+    const restitution = 0.30 + 0.35 * dropF;
+
+    const contain = flyF < 0.5;
+    const zContain = flyF < 0.02;
+
+    for (let i = 0; i < balls.length; i++) {
+      const b = balls[i];
+      const r = b.visualScale;
+
+      if (contain) {
+        if (b.position.x < -xBound - r) { b.position.x = -xBound - r; b.velocity.x *= params.rebound; }
+        else if (b.position.x > xBound + r) { b.position.x = xBound + r; b.velocity.x *= params.rebound; }
+
+        if (b.position.y - r < floorY) {
+          b.position.y = floorY + r;
+          if (b.velocity.y < 0) b.velocity.y = -b.velocity.y * restitution;
+          if (dropF > 0.3) { b.velocity.x *= 0.86; b.velocity.z *= 0.86; }
+        }
+        if (b.position.y + r > topY) {
+          b.position.y = topY - r;
+          if (b.velocity.y > 0) b.velocity.y *= params.rebound;
+        }
+      }
+
+      if (zContain) {
+        if (b.position.z < -zBound) { b.position.z = -zBound; b.velocity.z *= params.rebound; }
+        else if (b.position.z > zBound) { b.position.z = zBound; b.velocity.z *= params.rebound; }
+      }
+
+      deltaPos.copy(b.position).sub(b.meshGroup.position);
+      if (deltaPos.lengthSq() > 0.000001) {
+        rotAxis.set(deltaPos.y, -deltaPos.x, 0).normalize();
+        const rotAngle = (deltaPos.length() / b.radius) * 0.95;
+        b.meshGroup.rotateOnWorldAxis(rotAxis, rotAngle);
+      }
+      b.meshGroup.position.copy(b.position);
+    }
+
+    renderer.render(scene, camera);
+    if (!reportedReady) { reportedReady = true; onReady(); }
+  };
+
+  simulateAndRender();
+
+  /* ---- resize ---- */
+  const handleResize = () => {
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+    updateFrustumBounds();
+    assignHeartTargets();
+  };
+  const resizeObserver = new ResizeObserver(handleResize);
+  resizeObserver.observe(container);
+
+  /* ---- teardown (palette change rebuilds the whole scene) ---- */
+  return function dispose() {
+    cancelAnimationFrame(animationFrameId);
+    resizeObserver.disconnect();
+    for (const b of balls) {
+      scene.remove(b.meshGroup);
+      b.material.dispose();
+    }
+    sphereGeometry.dispose();
+    renderer.dispose();
+    if (renderer.forceContextLoss) renderer.forceContextLoss();
+    canvas.remove();
+  };
+}
+
+/* ============================================================
+   SCENE LIFECYCLE + PALETTE SWITCHING
+   ============================================================ */
+let disposeScene = null;
+let sceneReady = false;
+
+function mountScene(ballColor) {
+  if (disposeScene) disposeScene();
+  disposeScene = createScene(ballColor, () => { sceneReady = true; });
+}
+
+/* ============================================================
+   LOADER
+   ============================================================ */
+const loaderEl  = document.getElementById('loader');
+const statusEl  = document.getElementById('ld-status');
+const fillEl    = document.getElementById('ld-fill');
+const countEl   = document.getElementById('ld-count');
+
+let loaderValue = 0;
+let loaderFinishing = false;
+let loaderLast = performance.now();
+
+requestAnimationFrame(() => loaderEl.classList.add('in'));
+
+function loaderTick(now) {
+  const dt = Math.min(0.05, (now - loaderLast) / 1000);
+  loaderLast = now;
+
+  if (!sceneReady) {
+    loaderValue += (92 - loaderValue) * 1.7 * dt;   // eases toward a 92% ceiling
+  } else {
+    loaderValue += (100 - loaderValue) * 6 * dt;    // accelerates to 100
+    if (loaderValue >= 99.4) loaderValue = 100;
+  }
+
+  const shown = Math.round(loaderValue);
+  fillEl.style.width = `${loaderValue}%`;
+  countEl.textContent = `${String(shown).padStart(3, '0')}%`;
+  statusEl.textContent = shown < 100 ? t('loader.loading') : t('loader.ready');
+
+  if (loaderValue >= 99.9 && sceneReady && !loaderFinishing) {
+    loaderFinishing = true;
+    setTimeout(() => { loaderEl.classList.add('leaving'); }, 140);
+    setTimeout(() => {
+      control.started = true;               // releases the sphere fly-in
+      document.body.classList.add('revealed');
+    }, 140 + 520);
+    // Pulled from the layout only once the 0.55s fade has fully finished.
+    setTimeout(() => { loaderEl.classList.add('gone'); }, 140 + 560);
+    return;                                  // stop the loader rAF
+  }
+
+  requestAnimationFrame(loaderTick);
+}
+requestAnimationFrame(loaderTick);
+
+/* ============================================================
+   STUDIO CONTROLS DRAWER
+   ============================================================ */
+const drawerEl = document.getElementById('drawer');
+const scrimEl  = document.getElementById('scrim');
+const themesEl = document.getElementById('themes');
+let selectedThemeId = DEFAULT_THEME_ID;
+
+function renderThemes() {
+  themesEl.innerHTML = THEMES.map(th => `
+    <button class="theme-card${th.id === selectedThemeId ? ' sel' : ''}" data-theme="${th.id}">
+      <span class="tc-top">
+        <span class="tc-name">${t(`theme.${th.id}.name`)}</span>
+        <span class="tc-sw" style="background:${th.primaryColor}"></span>
+      </span>
+      <span class="tc-desc">${t(`theme.${th.id}.desc`)}</span>
+    </button>`).join('');
+}
+
+function selectTheme(id) {
+  const theme = THEMES.find(t => t.id === id);
+  if (!theme || id === selectedThemeId) return;
+  selectedThemeId = id;
+  renderThemes();
+  mountScene(theme.ballColor);   // full teardown + rebuild, as the React version keys the canvas
+}
+
+themesEl.addEventListener('click', (e) => {
+  const card = e.target.closest('[data-theme]');
+  if (card) selectTheme(card.dataset.theme);
+});
+
+const setDrawer = (open) => {
+  drawerOpen = open;
+  drawerEl.classList.toggle('open', open);
+  scrimEl.classList.toggle('open', open);
+};
+document.getElementById('open-drawer').addEventListener('click', () => setDrawer(true));
+document.getElementById('close-drawer').addEventListener('click', () => setDrawer(false));
+scrimEl.addEventListener('click', () => setDrawer(false));
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawerOpen) setDrawer(false); });
+
+document.getElementById('reset-defaults').addEventListener('click', () => selectTheme(DEFAULT_THEME_ID));
+
+/* ============================================================
+   LANGUAGE SWITCHER
+   ============================================================ */
+const langBtn  = document.getElementById('lang-btn');
+const langMenu = document.getElementById('lang-menu');
+const langCode = document.getElementById('lang-code');
+
+function applyLang(lang) {
+  currentLang = LANGS.includes(lang) ? lang : DEFAULT_LANG;
+  try { localStorage.setItem(LANG_STORE_KEY, currentLang); } catch (e) { /* storage blocked */ }
+
+  document.documentElement.lang = currentLang;
+  document.title = t('doc.title');
+
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const val = t(el.dataset.i18n);
+    if (typeof val !== 'string') return;
+    if (val.includes('<')) el.innerHTML = val; else el.textContent = val;
+  });
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => {
+    el.setAttribute('aria-label', t(el.dataset.i18nAria));
+  });
+
+  updateMarquee();
+  updateFooterCols();
+  renderThemes();
+
+  langCode.textContent = currentLang.toUpperCase();
+  langMenu.querySelectorAll('[data-lang]').forEach(b => {
+    const on = b.dataset.lang === currentLang;
+    b.classList.toggle('sel', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+}
+
+const setLangMenu = (open) => {
+  langMenu.classList.toggle('open', open);
+  langBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+};
+
+langBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  setLangMenu(!langMenu.classList.contains('open'));
+});
+langMenu.addEventListener('click', (e) => {
+  const opt = e.target.closest('[data-lang]');
+  if (!opt) return;
+  applyLang(opt.dataset.lang);
+  setLangMenu(false);
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.lang-wrap')) setLangMenu(false);
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && langMenu.classList.contains('open')) setLangMenu(false);
+});
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+applyLang(currentLang);
+mountScene(THEMES.find(t => t.id === DEFAULT_THEME_ID).ballColor);
+</script>
+</body>
+</html>

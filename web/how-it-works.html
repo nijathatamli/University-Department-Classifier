@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Necə işləyir · DEPTIFY</title>
+<meta name="description" content="How the request router classifies and assigns student messages." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&family=Raleway:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/assets/design-system.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="bg-gradient"></div>
+<header id="site-header"></header>
+<main id="main" class="page">
+  <section class="page-head reveal">
+    <div class="label-mono">[ Necə işləyir ]</div>
+    <h1 class="h-page">Mətndən<br>şöbəyə.</h1>
+    <p class="body-p">Sistem yazdığınız mətni təhlil edir və onu dörd şöbədən birinə yönləndirir. Aşağıda hər addımın nə etdiyi izah olunur.</p>
+  </section>
+  <section class="stack-lg mt-8">
+    <article class="card card-hover reveal">
+      <div class="card-in">
+        <div class="card-head"><span class="card-idx">01</span>
+          <span class="card-key">Mətn</span><span class="dot-blue"></span></div>
+        <h2 class="h-card">Siz müraciətinizi yazırsınız</h2>
+        <p class="card-desc">Heç bir forma, kateqoriya və ya açılan siyahı seçmirsiniz.
+          Sadəcə problemi öz sözlərinizlə yazırsınız — necə danışırsınızsa, elə də.</p>
+      </div>
+    </article>
+
+    <article class="card card-hover reveal" data-delay="0.05">
+      <div class="card-in">
+        <div class="card-head"><span class="card-idx">02</span>
+          <span class="card-key">Təmizləmə</span><span class="dot-blue"></span></div>
+        <h2 class="h-card">Mətn normallaşdırılır</h2>
+        <p class="card-desc">Böyük-kiçik hərflər, durğu işarələri və rəqəmlər təmizlənir.
+          Azərbaycan dilindəki nöqtəli/nöqtəsiz <em>i</em> problemi ayrıca həll olunur ki,
+          «İT» və «it» eyni token kimi görünsün.</p>
+      </div>
+    </article>
+
+    <article class="card card-hover reveal" data-delay="0.1">
+      <div class="card-in">
+        <div class="card-head"><span class="card-idx">03</span>
+          <span class="card-key">TF-IDF</span><span class="dot-blue"></span></div>
+        <h2 class="h-card">Mətn rəqəmlərə çevrilir</h2>
+        <p class="card-desc">Söz deyil, <strong>hərf n-qramları</strong> istifadə olunur
+          (char_wb, 2–5). Azərbaycan dili aqlütinativdir — «kitab», «kitabı», «kitabxanadan»
+          fərqli sözlərdir, amma eyni kökü daşıyır. Ölçdüyümüz fərq böyükdür:
+          söz əsaslı yanaşmada dəqiqlik 0.56, hərf əsaslı yanaşmada 0.80.</p>
+      </div>
+    </article>
+
+    <article class="card card-hover reveal" data-delay="0.15">
+      <div class="card-in">
+        <div class="card-head"><span class="card-idx">04</span>
+          <span class="card-key">Model</span><span class="dot-blue"></span></div>
+        <h2 class="h-card">Logistic Regression təsnifat aparır</h2>
+        <p class="card-desc">Öyrədilmiş model hər şöbə üçün ehtimal qaytarır. Ekranda gördüyünüz
+          faiz birbaşa modelin çıxışıdır — əl ilə yazılmış rəqəm deyil.</p>
+      </div>
+    </article>
+
+    <article class="card card-hover reveal" data-delay="0.2">
+      <div class="card-in">
+        <div class="card-head"><span class="card-idx">05</span>
+          <span class="card-key">Yönləndirmə</span><span class="dot-blue"></span></div>
+        <h2 class="h-card">Müraciət avtomatik göndərilir</h2>
+        <p class="card-desc">Ən yüksək ehtimallı şöbə seçilir, müraciətiniz üçün bilet yaradılır
+          və həmin şöbənin növbəsinə düşür. Şöbə əməkdaşı statusu dəyişdikdə siz də görürsünüz.</p>
+      </div>
+    </article>
+  </section>
+
+  <section class="panel mt-10 reveal">
+    <div class="label-mono">[ Modelin hazırkı göstəriciləri ]</div>
+    <div id="live-metrics" class="mt-6"></div>
+  </section>
+
+  <section class="panel mt-8 reveal">
+    <div class="label-mono">[ Məhdudiyyətlər ]</div>
+    <p class="body-p mt-4">Model 151 cümləlik kiçik datasetlə öyrədilib və hər beş müraciətdən
+      təxminən birini səhv şöbəyə yönləndirə bilər. Etibarlılıq faizi aşağı olan müraciətlər
+      admin panelində ayrıca göstərilir ki, insan nəzarəti mümkün olsun. Şöbə əməkdaşı səhv
+      yönləndirilmiş müraciəti görsə, statusu dəyişə bilər.</p>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script type="module" src="/assets/how-it-works.js"></script>
+</body>
+</html>
