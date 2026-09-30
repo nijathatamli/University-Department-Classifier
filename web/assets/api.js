@@ -50,6 +50,16 @@ async function request(path, { method = 'GET', body, signal } = {}) {
       err?.details,
     );
   }
+
+  // Every API endpoint answers with JSON. A 2xx without it means the request
+  // never reached the API — typically static hosting answering for it.
+  if (payload === null) {
+    throw new ApiError(
+      response.status,
+      'API_UNAVAILABLE',
+      'The API server is not responding. The site may be deployed without its backend.',
+    );
+  }
   return payload;
 }
 
