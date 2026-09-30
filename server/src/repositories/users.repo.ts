@@ -9,6 +9,8 @@ export interface UserRow {
   last_name: string;
   role: Role;
   department_id: string | null;
+  phone: string | null;
+  student_id: string | null;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
@@ -23,8 +25,11 @@ export interface PublicUser {
   role: Role;
   departmentId: string | null;
   departmentName?: string | null;
+  phone: string | null;
+  studentId: string | null;
   isActive: boolean;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export const toPublicUser = (row: UserRow): PublicUser => ({
@@ -34,8 +39,11 @@ export const toPublicUser = (row: UserRow): PublicUser => ({
   lastName: row.last_name,
   role: row.role,
   departmentId: row.department_id,
+  phone: row.phone,
+  studentId: row.student_id,
   isActive: row.is_active,
   createdAt: row.created_at,
+  updatedAt: row.updated_at,
 });
 
 export async function findUserByEmail(email: string): Promise<UserRow | null> {
@@ -66,6 +74,54 @@ export async function createUser(input: {
 
 export async function updatePassword(userId: string, passwordHash: string): Promise<void> {
   await query('UPDATE users SET password_hash = $2 WHERE id = $1', [userId, passwordHash]);
+}
+
+export interface ProfileUpdate {
+  firstName?: string;
+  lastName?: string;
+  phone?: string | null;
+  studentId?: string | null;
+}
+
+/**
+ * Updates the account details a user is allowed to change about themselves.
+ *
+ * Deliberately cannot touch email, role, department or is_active — those are
+ * not editable from the profile page, so they are not in the column map and no
+ * amount of extra JSON in the request body can reach them.
+ */
+export async function updateOwnProfile(
+  userId: string, input: ProfileUpdate,
+): Promise<UserRow | null> {
+  const map: Record<string, string> = {
+    firstName: 'first_name', lastName: 'last_name',
+    phone: 'phone', studentId: 'student_id',
+  };
+  const sets: string[] = [];
+  const values: unknown[] = [];
+
+  for (const [key, column] of Object.entries(map)) {
+    if (!(key in input)) continue;
+    values.push((input as Record<string, unknown>)[key]);
+    sets.push(`${column} = $${values.length}`);
+  }
+  if (sets.length === 0) return findUserById(userId);
+
+  values.push(userId);
+  const { rows } = await query<UserRow>(
+    `UPDATE users SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`,
+    values,
+  );
+  return rows[0] ?? null;
+}
+
+/** True when another account already claims this student ID. */
+export async function studentIdTaken(studentId: string, exceptUserId: string): Promise<boolean> {
+  const { rowCount } = await query(
+    'SELECT 1 FROM users WHERE lower(student_id) = lower($1) AND id <> $2',
+    [studentId, exceptUserId],
+  );
+  return (rowCount ?? 0) > 0;
 }
 
 export async function listUsers(params: {

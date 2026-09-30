@@ -71,6 +71,11 @@ export const api = {
     me: () => request('/auth/me'),
     forgotPassword: (b) => request('/auth/forgot-password', { method: 'POST', body: b }),
     resetPassword: (b) => request('/auth/reset-password', { method: 'POST', body: b }),
+    changePassword: (b) => request('/auth/change-password', { method: 'POST', body: b }),
+  },
+  profile: {
+    get: () => request('/profile'),
+    update: (b) => request('/profile', { method: 'PATCH', body: b }),
   },
   requests: {
     create: (b) => request('/requests', { method: 'POST', body: b }),

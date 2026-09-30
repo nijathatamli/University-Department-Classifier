@@ -1,6 +1,6 @@
 import { hashPassword, verifyPassword } from '../auth/password.ts';
 import { createResetToken, hashResetToken, signAccessToken } from '../auth/tokens.ts';
-import { conflict, unauthorized } from '../lib/errors.ts';
+import { badRequest, conflict, unauthorized } from '../lib/errors.ts';
 import { recordAudit } from '../repositories/audit.repo.ts';
 import {
   consumeResetToken, createUser, findUserByEmail, findUserById,
@@ -94,6 +94,43 @@ export async function requestPasswordReset(email: string): Promise<{ devToken?: 
   // No mail transport is configured in this project, so the token is returned
   // only outside production to keep the flow testable end to end.
   return process.env.NODE_ENV === 'production' ? {} : { devToken: token };
+}
+
+/**
+ * Changes the password of an already signed-in user.
+ *
+ * The current password is required even though the session is already valid:
+ * it stops someone who walks up to an unlocked browser from taking over the
+ * account, and it is the standard expectation for this flow.
+ */
+export async function changePassword(params: {
+  userId: string; currentPassword: string; newPassword: string; ip?: string;
+}): Promise<void> {
+  const user = await findUserById(params.userId);
+  if (!user) throw unauthorized();
+
+  if (!(await verifyPassword(user.password_hash, params.currentPassword))) {
+    await recordAudit({
+      userId: user.id, action: 'PASSWORD_CHANGE_FAILED', resource: 'user',
+      resourceId: user.id, ipAddress: params.ip,
+    });
+    throw badRequest('Cari şifrəniz düzgün deyil', {
+      fields: { currentPassword: 'Cari şifrəniz düzgün deyil' },
+      field: 'currentPassword',
+    });
+  }
+
+  if (await verifyPassword(user.password_hash, params.newPassword)) {
+    throw badRequest('Yeni şifrə cari şifrədən fərqli olmalıdır', {
+      fields: { newPassword: 'Başqa şifrə seçin' }, field: 'newPassword',
+    });
+  }
+
+  await updatePassword(user.id, await hashPassword(params.newPassword));
+  await recordAudit({
+    userId: user.id, action: 'PASSWORD_CHANGED', resource: 'user',
+    resourceId: user.id, ipAddress: params.ip,
+  });
 }
 
 export async function resetPassword(token: string, newPassword: string): Promise<void> {

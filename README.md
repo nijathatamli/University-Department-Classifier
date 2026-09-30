@@ -24,7 +24,7 @@ Kitabxana or İT Dəstək. The student tracks its status; department staff work 
 | [API.md](API.md) | Every endpoint, request/response shapes, error codes |
 | [ML.md](ML.md) | Dataset, training pipeline, evaluation, retraining |
 | [SECURITY.md](SECURITY.md) | Authentication, authorization, isolation, hardening |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Production deployment, configuration, operations |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Deploying to Render, production configuration, operations |
 
 ---
 
@@ -137,8 +137,8 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 
 **Public** — `/` landing · `/how-it-works` · `/about` · `/contact`
 **Auth** — `/login` · `/register` · `/forgot-password` · `/reset-password`
-**Student** — `/classifier` (write a request) · `/requests` (history and status)
-**Department staff** — `/department` (their own queue, status controls)
+**Student** — `/classifier` (write a request) · `/requests` (history and status) · `/profile` (account)
+**Department staff** — `/department` (their own queue, status controls) · `/profile`
 **Admin** — `/admin` (statistics, requests, model metrics, departments, users, messages, audit)
 
 ---
@@ -169,7 +169,7 @@ including how to retrain and how to add a department, are in [ML.md](ML.md).
 ```bash
 python3 ml/test_model.py   # model: artifacts, metrics, routing, probability sanity
 npm run ml:serve &         # the API tests exercise the real classifier
-npm test                   # 44 backend tests against a real PostgreSQL database
+npm test                   # 59 backend tests against a real PostgreSQL database
 ```
 
 - **Model** — artifacts exist, metrics in range and above chance, all 10 canonical messages route
@@ -188,12 +188,23 @@ npm test                   # 44 backend tests against a real PostgreSQL database
 - **Administration** — students and staff are blocked from every admin route, statistics come from
   the database, granting the DEPARTMENT role requires a department, admins cannot lock themselves
   out, audit entries are written.
+- **Profile** — the account is resolved from the session only, updates persist in PostgreSQL,
+  `email`/`role`/`isActive` cannot be changed through it, a user id in the body cannot touch
+  another account, student IDs are unique, and changing a password requires the current one.
 - **Error handling** — documented error envelope, no stack traces or filesystem paths.
 
 Rate limiting is disabled under `NODE_ENV=test`; it is verified against a running server instead
 (see [SECURITY.md](SECURITY.md#rate-limiting)).
 
 ---
+
+## Deploying
+
+`render.yaml` deploys the whole stack to [Render](https://render.com) as one Docker web service
+plus a managed PostgreSQL database — see [DEPLOYMENT.md](DEPLOYMENT.md#render-recommended-path).
+
+This is **not** a static site: choosing "Static Site" in the Render UI fails with
+`StaticPublishPath must be a relative path`. Use **Blueprint** or **Web Service → Docker**.
 
 ## Known gaps
 
