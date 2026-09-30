@@ -200,6 +200,8 @@ Rate limiting is disabled under `NODE_ENV=test`; it is verified against a runnin
 
 ## Deploying
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/nijathatamli/University-Department-Classifier)
+
 `render.yaml` deploys the whole stack to [Render](https://render.com) as one Docker web service
 plus a managed PostgreSQL database — see [DEPLOYMENT.md](DEPLOYMENT.md#render-recommended-path).
 
