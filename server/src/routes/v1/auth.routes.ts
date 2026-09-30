@@ -45,6 +45,23 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     user: await authService.me(request.currentUser!.id),
   }));
 
+  app.post('/change-password', {
+    config: strictLimit, preHandler: requireAuth,
+  }, async (request, reply) => {
+    const v = new Validator(request.body as Record<string, unknown>);
+    const currentPassword = v.string('currentPassword', { required: true, max: 128 });
+    const newPassword = v.password('newPassword');
+    v.assert();
+
+    await authService.changePassword({
+      userId: request.currentUser!.id,
+      currentPassword: currentPassword!,
+      newPassword: newPassword!,
+      ip: request.ip,
+    });
+    return reply.send({ message: 'Your password has been updated.' });
+  });
+
   app.post('/forgot-password', { config: strictLimit }, async (request, reply) => {
     const v = new Validator(request.body as Record<string, unknown>);
     const email = v.email('email');

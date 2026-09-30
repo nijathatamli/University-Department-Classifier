@@ -19,7 +19,7 @@ const LANGS = ['az', 'en', 'ru'];
 const CHROME_I18N = {
   az: {
     nav: { classifier: 'Müraciət göndər', requests: 'Müraciətlərim', how: 'Necə işləyir', about: 'Haqqımızda', contact: 'Əlaqə' },
-    queue: 'Şöbə paneli', admin: 'Admin', signIn: 'Daxil ol', signOut: 'Çıxış', start: 'Müraciət göndər',
+    queue: 'Şöbə paneli', profile: 'Profil', admin: 'Admin', signIn: 'Daxil ol', signOut: 'Çıxış', start: 'Müraciət göndər',
     footerLabel: '[ Müraciətiniz var? ]', footerHead: 'Yazın —<br>biz yönləndirək.', footerCta: 'Müraciət göndər',
     copy: '© 2026 Tələbə Müraciətlərinin Avtomatik Yönləndirilməsi — Bütün hüquqlar qorunur.',
     cols: [
@@ -30,7 +30,7 @@ const CHROME_I18N = {
   },
   en: {
     nav: { classifier: 'Submit request', requests: 'My requests', how: 'How it works', about: 'About', contact: 'Contact' },
-    queue: 'Department', admin: 'Admin', signIn: 'Sign in', signOut: 'Sign out', start: 'Submit request',
+    queue: 'Department', profile: 'Profile', admin: 'Admin', signIn: 'Sign in', signOut: 'Sign out', start: 'Submit request',
     footerLabel: '[ Got a request? ]', footerHead: 'Write it —<br>we route it.', footerCta: 'Submit request',
     copy: '© 2026 Student Request Routing — All rights reserved.',
     cols: [
@@ -41,7 +41,7 @@ const CHROME_I18N = {
   },
   ru: {
     nav: { classifier: 'Отправить обращение', requests: 'Мои обращения', how: 'Как это работает', about: 'О проекте', contact: 'Контакты' },
-    queue: 'Отдел', admin: 'Админ', signIn: 'Войти', signOut: 'Выйти', start: 'Отправить обращение',
+    queue: 'Отдел', profile: 'Профиль', admin: 'Админ', signIn: 'Войти', signOut: 'Выйти', start: 'Отправить обращение',
     footerLabel: '[ Есть обращение? ]', footerHead: 'Напишите —<br>мы направим.', footerCta: 'Отправить обращение',
     copy: '© 2026 Автоматическая маршрутизация обращений — Все права защищены.',
     cols: [
@@ -82,6 +82,9 @@ function navItems(user) {
   if (user?.role === 'STUDENT') items.splice(1, 0, [d.nav.requests, '/requests']);
   if (user?.role === 'DEPARTMENT') items.unshift([d.queue, '/department']);
   if (user?.role === 'ADMIN') items.unshift([d.admin, '/admin']);
+  // The header pill also links to /profile, but the pill is hidden on narrow
+  // screens — without this the page would be unreachable on a phone.
+  if (user) items.push([d.profile, '/profile']);
   return items;
 }
 

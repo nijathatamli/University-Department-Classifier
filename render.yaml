@@ -1,0 +1,74 @@
+# ---------------------------------------------------------------------------
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Deploys one Docker web service (Fastify API + frontend + the Python inference
+# service on localhost) and one managed PostgreSQL database.
+#
+# This project is NOT a Static Site: it needs a server, a database and a running
+# Python process. Selecting "Static Site" in the Render UI is what produces
+# "StaticPublishPath must be a relative path".
+#
+# Usage:  Render Dashboard -> New -> Blueprint -> pick this repository.
+# ---------------------------------------------------------------------------
+services:
+  - type: web
+    name: udc
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: frankfurt          # change to the region nearest your users
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Render injects PORT; the app must listen on 0.0.0.0 to receive traffic.
+      - key: HOST
+        value: 0.0.0.0
+
+      - key: DATABASE_URL
+        fromDatabase:
+          name: udc-db
+          property: connectionString
+
+      # Render's managed Postgres presents its own CA.
+      - key: DATABASE_SSL
+        value: "true"
+
+      # Generated once by Render and kept across deploys. Rotating it signs
+      # everyone out.
+      - key: JWT_SECRET
+        generateValue: true
+
+      # HTTPS-only cookie. Render terminates TLS, so this must be on.
+      - key: COOKIE_SECURE
+        value: "true"
+
+      # The inference service, reachable only from inside the container.
+      - key: ML_SERVICE_URL
+        value: http://127.0.0.1:8001
+
+      # Demo accounts have published passwords — never seed them in production.
+      - key: SEED_DEMO_ACCOUNTS
+        value: "false"
+
+      # Set these two in the Render dashboard to have the first administrator
+      # created automatically on the first deploy, then remove ADMIN_PASSWORD.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      # Set to your service URL after the first deploy, e.g.
+      # https://udc.onrender.com  (the hostname is not known until then).
+      - key: CORS_ORIGIN
+        sync: false
+      - key: API_URL
+        sync: false
+
+databases:
+  - name: udc-db
+    plan: free
+    databaseName: udc
+    user: udc

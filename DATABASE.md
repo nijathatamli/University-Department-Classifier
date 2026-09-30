@@ -41,7 +41,7 @@ contacts    (standalone)
 | Table | Purpose | Notes |
 |---|---|---|
 | `departments` | The four routing targets | Unique name + slug; `is_active` gates visibility |
-| `users` | Accounts | Case-insensitive unique email; `role` enum; `department_id` for staff |
+| `users` | Accounts | Case-insensitive unique email; `role` enum; `department_id` for staff; optional `phone` and `student_id` |
 | `password_reset_tokens` | Reset flow | Stores only the SHA-256 of the token; single-use |
 | `requests` | Tickets | `ticket_number` identity starting at 1000; `status` enum; `assigned_department_id` |
 | `request_predictions` | One row per classification | `confidence`, `model_version`, full `probabilities` JSONB |
@@ -78,6 +78,8 @@ leave a stale timestamp.
 Beyond primary and unique keys:
 
 - `users (lower(email))` unique — case-insensitive login
+- `users (lower(student_id)) WHERE student_id IS NOT NULL` unique — a student ID identifies one
+  person, but it is optional, so uniqueness is enforced only on the rows that have one
 - `users (department_id)` — staff lookup
 - `requests (user_id, created_at DESC)` — a student's history
 - `requests (assigned_department_id, status, created_at DESC)` — the department queue, the hottest
@@ -91,6 +93,8 @@ Beyond primary and unique keys:
 - `requests.message` must be at least 5 characters after trimming.
 - `request_predictions.confidence` must be between 0 and 1.
 - `users.email` must match an email shape; `contacts.email` too.
+- `users.phone` and `users.student_id` have format CHECKs, mirrored by the API so a bad value is a
+  readable 400 rather than a database error.
 - `ml_models` has a partial unique index on `is_active WHERE is_active` — at most one active model.
 
 ## Seeds

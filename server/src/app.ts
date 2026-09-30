@@ -19,6 +19,7 @@ import authRoutes from './routes/v1/auth.routes.ts';
 import departmentRoutes from './routes/v1/departments.routes.ts';
 import departmentQueueRoutes from './routes/v1/department.routes.ts';
 import requestRoutes from './routes/v1/requests.routes.ts';
+import profileRoutes from './routes/v1/profile.routes.ts';
 import modelRoutes from './routes/v1/model.routes.ts';
 import contactRoutes from './routes/v1/contact.routes.ts';
 import adminRoutes from './routes/v1/admin.routes.ts';
@@ -104,6 +105,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       tags: [
         { name: 'auth', description: 'Registration, login, password reset' },
         { name: 'requests', description: 'Submitting, reading and tracking student requests' },
+        { name: 'profile', description: 'The signed-in user\'s own account' },
         { name: 'departments', description: 'Routing targets' },
         { name: 'department', description: 'Department-side ticket queue' },
         { name: 'model', description: 'Model version and evaluation metrics' },
@@ -136,6 +138,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
       await api.register(authRoutes, { prefix: '/auth' });
       await api.register(requestRoutes, { prefix: '/requests' });
+      await api.register(profileRoutes, { prefix: '/profile' });
       await api.register(departmentRoutes, { prefix: '/departments' });
       await api.register(departmentQueueRoutes, { prefix: '/department' });
       await api.register(modelRoutes, { prefix: '/model' });

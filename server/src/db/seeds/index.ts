@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { withTransaction } from '../pool.ts';
 import { hashPassword } from '../../auth/password.ts';
+import { env } from '../../config/env.ts';
 
 /**
  * Seeds the four routing departments, their staff accounts, and registers the
@@ -102,8 +103,27 @@ export async function runSeed(log: (m: string) => void = console.log): Promise<v
       log('  no trained model found — run "npm run ml:train" before starting the API');
     }
 
-    // --- accounts ----------------------------------------------------------
-    // Development convenience only; DEPLOYMENT.md documents removing these.
+    // --- first admin (production bootstrap) --------------------------------
+    // Lets a fresh deployment get an administrator without demo credentials.
+    if (env.adminEmail && env.adminPassword) {
+      const hash = await hashPassword(env.adminPassword);
+      const { rowCount } = await client.query(
+        `INSERT INTO users (email, password_hash, first_name, last_name, role)
+         VALUES ($1,$2,$3,$4,'ADMIN')
+         ON CONFLICT (lower(email)) DO NOTHING`,
+        [env.adminEmail.toLowerCase(), hash, 'Admin', 'User'],
+      );
+      log(rowCount ? `  admin ${env.adminEmail} created` : `  admin ${env.adminEmail} already exists`);
+    }
+
+    // --- demo accounts -----------------------------------------------------
+    // Published passwords: never seeded in production. Controlled by
+    // SEED_DEMO_ACCOUNTS, which defaults to false when NODE_ENV=production.
+    if (!env.seedDemoAccounts) {
+      log('  demo accounts skipped (SEED_DEMO_ACCOUNTS is off)');
+      return;
+    }
+
     const accounts: Array<{
       email: string; password: string; first: string; last: string;
       role: 'STUDENT' | 'DEPARTMENT' | 'ADMIN'; department?: string;

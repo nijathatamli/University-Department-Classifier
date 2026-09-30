@@ -49,6 +49,7 @@ Paginated endpoints return `{ items, pagination: { page, pageSize, total, totalP
 | GET | `/auth/me` | session | Current user, including `departmentId` for staff |
 | POST | `/auth/forgot-password` | — | Always 200. Outside production returns `devToken` (no mail transport) |
 | POST | `/auth/reset-password` | — | Consumes a single-use token |
+| POST | `/auth/change-password` | session | Requires the current password; rejects reuse |
 
 Auth endpoints are limited to **10 requests per minute per IP**.
 
@@ -99,6 +100,38 @@ PATCH /api/v1/requests/{id}/status
 ```
 
 A student gets **403** on their own ticket's status — only the handling department may move it.
+
+---
+
+## Profile
+
+The signed-in user's own account. There is deliberately **no `/profile/:id`** — the user comes
+from the session, so there is no identifier a client could substitute.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/profile` | The caller's account plus a `completion` percentage |
+| PATCH | `/profile` | Update `firstName`, `lastName`, `phone`, `studentId` |
+
+```http
+GET /api/v1/profile
+→ 200
+{
+  "profile": {
+    "id": "…", "email": "student@udc.local",
+    "firstName": "Leyla", "lastName": "Məmmədova",
+    "role": "STUDENT", "departmentId": null, "departmentName": null,
+    "phone": "+994 50 111 22 33", "studentId": "ST-2024-0117",
+    "isActive": true, "createdAt": "…", "updatedAt": "…"
+  },
+  "completion": 100
+}
+```
+
+`email`, `role`, `departmentId` and `isActive` are **not editable here** — they are absent from the
+update's column map, so extra keys in the body have no effect. `phone` and `studentId` accept an
+empty string to clear them. `studentId` is unique across accounts (case-insensitive) and returns
+409 on a clash.
 
 ---
 

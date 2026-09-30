@@ -9,6 +9,7 @@ pg.types.setTypeParser(pg.types.builtins.INT8, (v) => (v === null ? null : Numbe
 
 export const pool = new pg.Pool({
   connectionString: env.databaseUrl,
+  ...(env.databaseSsl ? { ssl: { rejectUnauthorized: false } } : {}),
   max: env.isTest ? 4 : 10,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 10_000,

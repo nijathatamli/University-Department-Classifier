@@ -14,7 +14,10 @@ async function createDatabaseIfMissing(): Promise<boolean> {
   const adminUrl = new URL(url.toString());
   adminUrl.pathname = '/postgres';
 
-  const admin = new pg.Client({ connectionString: adminUrl.toString() });
+  const admin = new pg.Client({
+    connectionString: adminUrl.toString(),
+    ...(env.databaseSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+  });
   await admin.connect();
   try {
     const { rowCount } = await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [dbName]);

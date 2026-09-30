@@ -180,6 +180,21 @@ img { max-width: 100%; }
 .icon-btn:hover { background: rgba(255, 255, 255, 0.3); }
 @media (min-width: 768px) { .icon-btn { width: 44px; height: 44px; } }
 
+/* Below ~430px the signed-in header runs out of room and the sign-out button
+   clips off-screen. It stays reachable on /profile — which the name pill links
+   to — and Profil is in the mobile drawer. */
+@media (max-width: 479px) {
+  #site-header #logout-btn { display: none; }
+  .pill { padding-left: 14px; gap: 8px; }
+  .pill > span:first-child { max-width: 8ch; overflow: hidden; text-overflow: ellipsis; }
+}
+/* Smallest phones (≤360px): drop the account pill as well. Profil is in the
+   drawer, so nothing becomes unreachable. The signed-out CTA pill is kept —
+   it is the primary action on the page. */
+@media (max-width: 379px) {
+  #site-header .hdr-right > .pill[href="/profile"] { display: none; }
+}
+
 /* Mobile drawer for the primary nav */
 .nav-toggle { display: flex; }
 @media (min-width: 900px) { .nav-toggle { display: none; } }

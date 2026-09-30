@@ -1,5 +1,96 @@
 # Deployment
 
+## Render (recommended path)
+
+**This project is not a Static Site.** It needs a server, a PostgreSQL database and a running
+Python process. Choosing "Static Site" in the Render UI is what produces:
+
+```
+StaticPublishPath must be a relative path: /
+```
+
+There is no publish directory that fixes it — pick a different service type.
+
+### Option A — Blueprint (one click)
+
+The repository contains `render.yaml`, which declares the web service and the database together.
+
+1. Push this repository to GitHub/GitLab.
+2. Render Dashboard → **New → Blueprint** → select the repository.
+3. Render reads `render.yaml` and creates:
+   - **udc** — a Docker web service (API + frontend + inference service)
+   - **udc-db** — a managed PostgreSQL database
+4. When prompted, fill the values marked `sync: false`:
+
+   | Variable | Value |
+   |---|---|
+   | `ADMIN_EMAIL` | your address — the seed creates this administrator |
+   | `ADMIN_PASSWORD` | a strong password; **delete this variable after the first deploy** |
+   | `CORS_ORIGIN` | `https://<your-service>.onrender.com` |
+   | `API_URL` | the same URL |
+
+   The URL is only known after the first deploy, so set `CORS_ORIGIN`/`API_URL` then redeploy.
+
+5. Deploy. Migrations and reference-data seeding run automatically at start-up.
+
+### Option B — creating the service by hand
+
+If you prefer the form, choose **New → Web Service** (not Static Site) and enter:
+
+| Field | Value |
+|---|---|
+| Language / Runtime | **Docker** |
+| Dockerfile Path | `./Dockerfile` |
+| Build Command | *(leave empty — the Dockerfile builds)* |
+| Start Command | *(leave empty — the image's `CMD` runs `scripts/start.sh`)* |
+| Health Check Path | `/api/v1/health` |
+
+Then create **New → PostgreSQL** separately, and add these environment variables to the web
+service:
+
+```
+NODE_ENV=production
+HOST=0.0.0.0
+DATABASE_URL=<Internal Database URL from the Render Postgres page>
+DATABASE_SSL=true
+JWT_SECRET=<openssl rand -base64 48>
+COOKIE_SECURE=true
+ML_SERVICE_URL=http://127.0.0.1:8001
+SEED_DEMO_ACCOUNTS=false
+CORS_ORIGIN=https://<your-service>.onrender.com
+API_URL=https://<your-service>.onrender.com
+ADMIN_EMAIL=<your address>
+ADMIN_PASSWORD=<strong password, remove after first deploy>
+```
+
+Do **not** set `PORT` — Render provides it and the app reads it.
+
+### Why one container runs both processes
+
+The Python inference service has no authentication of its own; it is safe because it binds to
+`127.0.0.1` and only the Node API can reach it. Running it as a second *public* Render service
+would expose the model to the internet. Keeping both in one image preserves that boundary, works
+on the free plan, and means one deploy instead of two.
+
+### Things to know about the free plan
+
+- **Free services sleep after ~15 minutes of inactivity.** The first request after that has to
+  start the container *and* load scikit-learn, so expect roughly 30–60 seconds. The health check
+  path keeps the platform informed, it does not prevent sleeping.
+- **Free PostgreSQL expires.** Render deletes free databases after their trial window; back up or
+  move to a paid instance before then.
+- Memory on the free plan is 512 MB. Node plus a loaded scikit-learn pipeline fits, but there is
+  not much headroom — if the container is OOM-killed, upgrade the instance rather than trimming
+  the model.
+
+### Model artifacts
+
+`ml/models/classifier.joblib` and `metrics.json` are committed, so the image does not train during
+build (training in a build step would make deploys slow and non-deterministic). After retraining
+locally, commit the new artifacts and redeploy — see [ML.md](ML.md#retraining).
+
+---
+
 ## Requirements
 
 - Node.js 20+
@@ -57,10 +148,13 @@ plaintext. The process refuses to start if `JWT_SECRET` is missing or shorter th
 
 ## Before you go live
 
-- [ ] **Delete the demo accounts.** All six are created by the seed with published passwords.
+- [ ] **Confirm no demo accounts exist.** With `NODE_ENV=production` the seed skips them
+      automatically (`SEED_DEMO_ACCOUNTS` defaults to false), but verify:
       ```sql
-      DELETE FROM users WHERE email LIKE '%@udc.local';
+      SELECT email FROM users WHERE email LIKE '%@udc.local';   -- expect zero rows
       ```
+      If any exist from an earlier run: `DELETE FROM users WHERE email LIKE '%@udc.local';`
+- [ ] **Remove `ADMIN_PASSWORD`** from the environment once the first admin exists.
       Then create a real admin and promote it:
       ```sql
       UPDATE users SET role = 'ADMIN' WHERE email = 'you@yourdomain';

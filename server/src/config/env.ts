@@ -54,6 +54,25 @@ export const env = {
   cookieSecure: optional('COOKIE_SECURE', 'false') === 'true',
   /** Python inference service (ml/serve.py). Localhost-only, never exposed. */
   mlServiceUrl: optional('ML_SERVICE_URL', 'http://127.0.0.1:8001'),
+
+  /**
+   * Managed Postgres (Render, Heroku, Neon…) terminates TLS with its own CA,
+   * so verification is relaxed rather than disabled entirely — the connection
+   * is still encrypted. Auto-enabled when the URL asks for it.
+   */
+  databaseSsl:
+    optional('DATABASE_SSL', 'false') === 'true' || /[?&]sslmode=require/.test(databaseUrl),
+
+  /**
+   * Demo accounts have published passwords, so they are never seeded in
+   * production unless someone explicitly asks for them.
+   */
+  seedDemoAccounts:
+    optional('SEED_DEMO_ACCOUNTS', nodeEnv === 'production' ? 'false' : 'true') === 'true',
+
+  /** Optional first admin, created by the seed when both are present. */
+  adminEmail: optional('ADMIN_EMAIL', ''),
+  adminPassword: optional('ADMIN_PASSWORD', ''),
   rateLimitMax: Number(optional('RATE_LIMIT_MAX', '300')),
   rateLimitWindow: optional('RATE_LIMIT_WINDOW', '1 minute'),
   apiUrl: optional('API_URL', 'http://localhost:4000'),
