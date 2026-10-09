@@ -172,6 +172,7 @@ npm run ml:serve &         # the API tests exercise the real classifier
 npm test                   # 59 backend tests against a real PostgreSQL database
 ```
 
+
 - **Model** — artifacts exist, metrics in range and above chance, all 10 canonical messages route
   correctly (including misspelled and diacritic-free input), probabilities sum to 1 and vary by
   input, identical input gives identical output.
